@@ -14,10 +14,58 @@ const SEASONS = [
 
 const POSITION_MAP = { '1': 'GKP', '2': 'DEF', '3': 'MID', '4': 'FWD', 'GKP': 'GKP', 'DEF': 'DEF', 'MID': 'MID', 'FWD': 'FWD', 'GK': 'GKP' };
 
+// Positions that indicate managers/coaches (not players)
+const MANAGER_POSITIONS = new Set(['AM', '5']);
+
 function parseCSV(filePath) {
-  const content = fs.readFileSync(filePath, 'utf-8');
+  // Some older CSV files are encoded in Latin-1/ISO-8859-1, not UTF-8
+  // Try UTF-8 first; if we detect replacement chars, re-read as Latin-1
+  let content = fs.readFileSync(filePath, 'utf-8');
+  if (content.includes('\ufffd')) {
+    // Re-read as Latin-1 to properly decode accented characters
+    const raw = fs.readFileSync(filePath);
+    content = raw.toString('latin1');
+  }
   const result = Papa.parse(content, { header: true, skipEmptyLines: true, dynamicTyping: true });
   return result.data;
+}
+
+// Fix encoding issues in names (mojibake from Latin-1 → UTF-8 misread)
+const CHAR_FIXES = {
+  '\u00e9': 'é', '\u00e8': 'è', '\u00ea': 'ê', '\u00eb': 'ë',
+  '\u00e1': 'á', '\u00e0': 'à', '\u00e2': 'â', '\u00e3': 'ã', '\u00e4': 'ä', '\u00e5': 'å',
+  '\u00ed': 'í', '\u00ec': 'ì', '\u00ee': 'î', '\u00ef': 'ï',
+  '\u00f3': 'ó', '\u00f2': 'ò', '\u00f4': 'ô', '\u00f5': 'õ', '\u00f6': 'ö',
+  '\u00fa': 'ú', '\u00f9': 'ù', '\u00fb': 'û', '\u00fc': 'ü',
+  '\u00f1': 'ñ', '\u00e7': 'ç', '\u00fd': 'ý', '\u00ff': 'ÿ',
+  '\u0161': 'š', '\u017e': 'ž', '\u010d': 'č', '\u0159': 'ř', '\u0148': 'ň',
+};
+
+/**
+ * Clean up player name:
+ * 1. Remove numeric suffixes like _246, _280 (FPL element IDs)
+ * 2. Replace underscores with spaces
+ * 3. Fix encoding artifacts (replacement char)
+ */
+function cleanName(rawName) {
+  if (!rawName) return '';
+  let name = String(rawName);
+  // Remove trailing _NNN (element ID suffixes) - match underscore + 1-4 digits at end
+  name = name.replace(/_(\d{1,4})$/, '');
+  // Replace underscores with spaces
+  name = name.replace(/_/g, ' ');
+  // Replace replacement character with empty (better than showing �)
+  name = name.replace(/\ufffd/g, '');
+  // Clean up any double spaces
+  name = name.replace(/\s+/g, ' ').trim();
+  return name;
+}
+
+/**
+ * Check if a position indicates a manager rather than a player
+ */
+function isManager(position, elementType) {
+  return MANAGER_POSITIONS.has(String(position)) || MANAGER_POSITIONS.has(String(elementType));
 }
 
 function num(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
@@ -36,68 +84,90 @@ for (const season of SEASONS) {
   const players = parseCSV(playersFile);
   const gws = parseCSV(gwsFile);
 
-  // Normalize player data
-  const seasonPlayers = players.map((p, i) => ({
-    id: `${season}-${i}`,
-    season,
-    first_name: p.first_name || '',
-    second_name: p.second_name || '',
-    name: `${p.first_name || ''} ${p.second_name || ''}`.trim(),
-    goals: num(p.goals_scored),
-    assists: num(p.assists),
-    total_points: num(p.total_points),
-    minutes: num(p.minutes),
-    goals_conceded: num(p.goals_conceded),
-    creativity: num(p.creativity),
-    influence: num(p.influence),
-    threat: num(p.threat),
-    bonus: num(p.bonus),
-    bps: num(p.bps),
-    ict_index: num(p.ict_index),
-    clean_sheets: num(p.clean_sheets),
-    red_cards: num(p.red_cards),
-    yellow_cards: num(p.yellow_cards),
-    selected_pct: num(p.selected_by_percent),
-    cost: num(p.now_cost) / 10 || 0,
-    position: POSITION_MAP[String(p.element_type)] || 'UNK',
-  }));
+  // Normalize player data (filter out managers)
+  const seasonPlayers = players
+    .filter(p => !isManager(p.element_type, p.element_type))
+    .map((p, i) => ({
+      id: `${season}-${i}`,
+      season,
+      first_name: p.first_name || '',
+      second_name: p.second_name || '',
+      name: cleanName(`${p.first_name || ''} ${p.second_name || ''}`.trim()),
+      goals: num(p.goals_scored),
+      assists: num(p.assists),
+      total_points: num(p.total_points),
+      minutes: num(p.minutes),
+      goals_conceded: num(p.goals_conceded),
+      creativity: num(p.creativity),
+      influence: num(p.influence),
+      threat: num(p.threat),
+      bonus: num(p.bonus),
+      bps: num(p.bps),
+      ict_index: num(p.ict_index),
+      clean_sheets: num(p.clean_sheets),
+      red_cards: num(p.red_cards),
+      yellow_cards: num(p.yellow_cards),
+      selected_pct: num(p.selected_by_percent),
+      cost: num(p.now_cost) / 10 || 0,
+      own_goals: num(p.own_goals),
+      position: POSITION_MAP[String(p.element_type)] || 'UNK',
+    }));
 
-  // Normalize gameweek data
-  const seasonGws = gws.map((g, i) => ({
-    season,
-    name: g.name || '',
-    position: POSITION_MAP[String(g.position)] || POSITION_MAP[String(g.element_type)] || 'UNK',
-    team: g.team || '',
-    gw: num(g.GW || g.round),
-    total_points: num(g.total_points),
-    minutes: num(g.minutes),
-    goals: num(g.goals_scored),
-    assists: num(g.assists),
-    clean_sheets: num(g.clean_sheets),
-    goals_conceded: num(g.goals_conceded),
-    bonus: num(g.bonus),
-    bps: num(g.bps),
-    influence: num(g.influence),
-    creativity: num(g.creativity),
-    threat: num(g.threat),
-    ict_index: num(g.ict_index),
-    saves: num(g.saves),
-    yellow_cards: num(g.yellow_cards),
-    red_cards: num(g.red_cards),
-    own_goals: num(g.own_goals),
-    penalties_missed: num(g.penalties_missed),
-    penalties_saved: num(g.penalties_saved),
-    value: num(g.value) / 10 || 0,
-    was_home: g.was_home === true || g.was_home === 'True' || g.was_home === 'TRUE',
-    kickoff_time: g.kickoff_time || '',
-    selected: num(g.selected),
-    transfers_in: num(g.transfers_in),
-    transfers_out: num(g.transfers_out),
-    xP: num(g.xP),
-    expected_goals: num(g.expected_goals),
-    expected_assists: num(g.expected_assists),
-    opponent_team: num(g.opponent_team),
-  }));
+  // Collect managers separately
+  const seasonManagers = players
+    .filter(p => isManager(p.element_type, p.element_type))
+    .map((p, i) => ({
+      id: `${season}-mgr-${i}`,
+      season,
+      name: cleanName(`${p.first_name || ''} ${p.second_name || ''}`.trim()),
+      total_points: num(p.total_points),
+      minutes: 0,
+      position: 'MGR',
+    }));
+
+  // Normalize gameweek data (separate managers from players)
+  const allSeasonGws = gws.map((g, i) => {
+    const pos = String(g.position || g.element_type || '');
+    const isMgr = isManager(pos, g.element_type);
+    return {
+      season,
+      name: cleanName(g.name || ''),
+      position: isMgr ? 'MGR' : (POSITION_MAP[pos] || POSITION_MAP[String(g.element_type)] || 'UNK'),
+      team: g.team || '',
+      gw: num(g.GW || g.round),
+      total_points: num(g.total_points),
+      minutes: num(g.minutes),
+      goals: num(g.goals_scored),
+      assists: num(g.assists),
+      clean_sheets: num(g.clean_sheets),
+      goals_conceded: num(g.goals_conceded),
+      bonus: num(g.bonus),
+      bps: num(g.bps),
+      influence: num(g.influence),
+      creativity: num(g.creativity),
+      threat: num(g.threat),
+      ict_index: num(g.ict_index),
+      saves: num(g.saves),
+      yellow_cards: num(g.yellow_cards),
+      red_cards: num(g.red_cards),
+      own_goals: num(g.own_goals),
+      penalties_missed: num(g.penalties_missed),
+      penalties_saved: num(g.penalties_saved),
+      value: num(g.value) / 10 || 0,
+      was_home: g.was_home === true || g.was_home === 'True' || g.was_home === 'TRUE',
+      kickoff_time: g.kickoff_time || '',
+      selected: num(g.selected),
+      transfers_in: num(g.transfers_in),
+      transfers_out: num(g.transfers_out),
+      xP: num(g.xP),
+      expected_goals: num(g.expected_goals),
+      expected_assists: num(g.expected_assists),
+      opponent_team: num(g.opponent_team),
+      isManager: isMgr,
+    };
+  });
+  const seasonGws = allSeasonGws.filter(g => !g.isManager);
+  const managerGws = allSeasonGws.filter(g => g.isManager);
 
   // Fix missing positions from player data using GW data
   const gwPositions = {};
@@ -122,6 +192,7 @@ for (const season of SEASONS) {
 
   const totalGoals = seasonPlayers.reduce((s, p) => s + p.goals, 0);
   const totalAssists = seasonPlayers.reduce((s, p) => s + p.assists, 0);
+  const totalOwnGoals = seasonGws.reduce((s, g) => s + g.own_goals, 0);
   const totalPlayers = seasonPlayers.filter(p => p.minutes > 0).length;
 
   seasonSummaries.push({
@@ -129,10 +200,12 @@ for (const season of SEASONS) {
     totalPlayers,
     totalGoals,
     totalAssists,
+    totalOwnGoals,
     topScorer: { name: topScorer?.name, points: topScorer?.total_points },
     topGoalScorer: { name: topGoals?.name, goals: topGoals?.goals },
     topAssister: { name: topAssists?.name, assists: topAssists?.assists },
     avgPointsPerPlayer: Math.round(seasonPlayers.filter(p => p.minutes > 0).reduce((s, p) => s + p.total_points, 0) / totalPlayers),
+    managers: seasonManagers.length > 0 ? seasonManagers.map(m => ({ name: m.name, points: m.total_points })) : undefined,
   });
 }
 
@@ -145,9 +218,9 @@ for (const season of SEASONS) {
   fs.writeFileSync(path.join(OUT_DIR, `players-${season}.json`), JSON.stringify(sp));
 }
 
-// All-time records - aggregate across seasons
+// All-time records - aggregate across seasons (players only)
 const playerCareerMap = {};
-for (const p of allPlayers) {
+for (const p of allPlayers.filter(p => p.position !== 'MGR')) {
   const key = p.name;
   if (!playerCareerMap[key]) {
     playerCareerMap[key] = {
@@ -182,8 +255,9 @@ const careerStats = Object.values(playerCareerMap).map(c => ({
 
 fs.writeFileSync(path.join(OUT_DIR, 'all-time.json'), JSON.stringify(careerStats.slice(0, 500)));
 
-// Top single gameweek performances
+// Top single gameweek performances (players only, no managers)
 const topGwPerformances = [...allGameweeks]
+  .filter(g => g.position !== 'MGR')
   .sort((a, b) => b.total_points - a.total_points)
   .slice(0, 200)
   .map(g => ({
@@ -191,6 +265,7 @@ const topGwPerformances = [...allGameweeks]
     season: g.season,
     gw: g.gw,
     team: g.team,
+    position: g.position,
     points: g.total_points,
     goals: g.goals,
     assists: g.assists,
@@ -201,9 +276,24 @@ const topGwPerformances = [...allGameweeks]
 
 fs.writeFileSync(path.join(OUT_DIR, 'top-gw-performances.json'), JSON.stringify(topGwPerformances));
 
-// Per-season gameweek averages (for charts)
+// Manager performances (separate file)
+const managerPerfs = [...allGameweeks]
+  .filter(g => g.position === 'MGR')
+  .sort((a, b) => b.total_points - a.total_points)
+  .slice(0, 100)
+  .map(g => ({
+    name: g.name,
+    season: g.season,
+    gw: g.gw,
+    team: g.team,
+    points: g.total_points,
+  }));
+
+fs.writeFileSync(path.join(OUT_DIR, 'manager-performances.json'), JSON.stringify(managerPerfs));
+
+// Per-season gameweek averages (for charts, players only)
 for (const season of SEASONS) {
-  const sgws = allGameweeks.filter(g => g.season === season);
+  const sgws = allGameweeks.filter(g => g.season === season && g.position !== 'MGR');
   const gwNumbers = [...new Set(sgws.map(g => g.gw))].sort((a, b) => a - b);
 
   const gwAverages = gwNumbers.map(gwNum => {
@@ -227,9 +317,9 @@ for (const season of SEASONS) {
   fs.writeFileSync(path.join(OUT_DIR, `gw-${season}.json`), JSON.stringify(gwAverages));
 }
 
-// Team stats per season
+// Team stats per season (filter out managers)
 for (const season of SEASONS) {
-  const sgws = allGameweeks.filter(g => g.season === season && g.team);
+  const sgws = allGameweeks.filter(g => g.season === season && g.team && g.position !== 'MGR');
   const teams = [...new Set(sgws.map(g => g.team))].sort();
 
   const teamStats = teams.map(team => {

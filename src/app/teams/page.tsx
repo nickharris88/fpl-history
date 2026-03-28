@@ -42,6 +42,17 @@ export default function TeamsPage() {
 
       <SeasonSelector value={season} onChange={setSeason} className="mb-8" />
 
+      {teams.length === 0 && (
+        <div className="glass rounded-xl p-8 text-center mb-8">
+          <Shield size={32} className="mx-auto mb-3 text-muted" />
+          <p className="text-lg font-medium mb-2">Team data not available for {season}</p>
+          <p className="text-muted text-sm max-w-md mx-auto">
+            The FPL dataset for seasons 2016-17 through 2019-20 does not include team assignments in the gameweek data.
+            Team breakdowns are available from 2020-21 onwards.
+          </p>
+        </div>
+      )}
+
       {topTeam && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <StatCard label="Top FPL Team" value={topTeam.team} subtitle={`${topTeam.totalPoints} total pts`} icon={<Shield size={20} />} />

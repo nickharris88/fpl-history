@@ -15,6 +15,7 @@ interface SeasonSummary {
   totalPlayers: number;
   totalGoals: number;
   totalAssists: number;
+  totalOwnGoals: number;
   topScorer: { name: string; points: number };
   topGoalScorer: { name: string; goals: number };
   topAssister: { name: string; assists: number };
@@ -69,8 +70,15 @@ export default function Dashboard() {
   }
 
   const totalGoalsAllTime = seasons.reduce((s, se) => s + se.totalGoals, 0);
+  const totalOwnGoalsAllTime = seasons.reduce((s, se) => s + (se.totalOwnGoals || 0), 0);
   const totalAssistsAllTime = seasons.reduce((s, se) => s + se.totalAssists, 0);
   const totalPlayerSeasons = seasons.reduce((s, se) => s + se.totalPlayers, 0);
+
+  const goalsChartData = seasons.map(s => ({
+    season: s.season,
+    goals: s.totalGoals,
+    ownGoals: s.totalOwnGoals || 0,
+  }));
 
   const positionData = [
     { name: 'GKP', value: allTime.filter(p => p.positions.includes('GKP')).length },
@@ -97,23 +105,24 @@ export default function Dashboard() {
       {/* Key Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 animate-slide-up">
         <StatCard label="Seasons" value="9" subtitle="2016-17 to 2024-25" icon={<Calendar size={20} />} />
-        <StatCard label="Total Goals" value={totalGoalsAllTime.toLocaleString()} subtitle="Across all seasons" icon={<Target size={20} />} />
+        <StatCard label="Total Goals" value={(totalGoalsAllTime + totalOwnGoalsAllTime).toLocaleString()} subtitle={`Incl. ${totalOwnGoalsAllTime} own goals`} icon={<Target size={20} />} />
         <StatCard label="Total Assists" value={totalAssistsAllTime.toLocaleString()} subtitle="Across all seasons" icon={<Zap size={20} />} />
         <StatCard label="Unique Players" value={allTime.length.toLocaleString()} subtitle={`${totalPlayerSeasons.toLocaleString()} player-seasons`} icon={<Users size={20} />} />
       </div>
 
       {/* Charts Row 1 */}
       <div className="grid md:grid-cols-2 gap-6 mb-6">
-        <ChartWrapper title="Goals Per Season" subtitle="Total goals scored across all FPL players">
+        <ChartWrapper title="Goals Per Season" subtitle="Goals scored + own goals (stacked)">
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={seasons}>
+            <BarChart data={goalsChartData}>
               <XAxis dataKey="season" tick={{ fontSize: 11 }} />
               <YAxis />
               <Tooltip
                 contentStyle={{ background: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: 8 }}
                 labelStyle={{ color: '#e8e8f0' }}
               />
-              <Bar dataKey="totalGoals" fill="#00ff87" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="goals" stackId="goals" name="Goals" fill="#00ff87" radius={[0, 0, 0, 0]} />
+              <Bar dataKey="ownGoals" stackId="goals" name="Own Goals" fill="#ff4466" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartWrapper>

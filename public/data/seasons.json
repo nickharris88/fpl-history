@@ -4,8 +4,9 @@
     "totalPlayers": 524,
     "totalGoals": 1029,
     "totalAssists": 938,
+    "totalOwnGoals": 35,
     "topScorer": {
-      "name": "Alexis S�nchez",
+      "name": "Alexis Sánchez",
       "points": 264
     },
     "topGoalScorer": {
@@ -23,6 +24,7 @@
     "totalPlayers": 515,
     "totalGoals": 988,
     "totalAssists": 907,
+    "totalOwnGoals": 30,
     "topScorer": {
       "name": "Mohamed Salah",
       "points": 303
@@ -42,6 +44,7 @@
     "totalPlayers": 505,
     "totalGoals": 1038,
     "totalAssists": 933,
+    "totalOwnGoals": 34,
     "topScorer": {
       "name": "Mohamed Salah",
       "points": 259
@@ -61,6 +64,7 @@
     "totalPlayers": 515,
     "totalGoals": 1001,
     "totalAssists": 901,
+    "totalOwnGoals": 33,
     "topScorer": {
       "name": "Kevin De Bruyne",
       "points": 251
@@ -80,6 +84,7 @@
     "totalPlayers": 524,
     "totalGoals": 986,
     "totalAssists": 905,
+    "totalOwnGoals": 38,
     "topScorer": {
       "name": "Bruno Miguel Borges Fernandes",
       "points": 244
@@ -99,6 +104,7 @@
     "totalPlayers": 537,
     "totalGoals": 1037,
     "totalAssists": 929,
+    "totalOwnGoals": 34,
     "topScorer": {
       "name": "Mohamed Salah",
       "points": 265
@@ -118,6 +124,7 @@
     "totalPlayers": 554,
     "totalGoals": 1038,
     "totalAssists": 927,
+    "totalOwnGoals": 46,
     "topScorer": {
       "name": "Erling Haaland",
       "points": 272
@@ -137,6 +144,7 @@
     "totalPlayers": 570,
     "totalGoals": 1196,
     "totalAssists": 1071,
+    "totalOwnGoals": 50,
     "topScorer": {
       "name": "Cole Palmer",
       "points": 244
@@ -156,6 +164,7 @@
     "totalPlayers": 562,
     "totalGoals": 1081,
     "totalAssists": 978,
+    "totalOwnGoals": 34,
     "topScorer": {
       "name": "Mohamed Salah",
       "points": 344
@@ -168,6 +177,88 @@
       "name": "Mohamed Salah",
       "assists": 18
     },
-    "avgPointsPerPlayer": 56
+    "avgPointsPerPlayer": 56,
+    "managers": [
+      {
+        "name": "Mikel Arteta",
+        "points": 104
+      },
+      {
+        "name": "Unai Emery",
+        "points": 105
+      },
+      {
+        "name": "Andoni Iraola",
+        "points": 82
+      },
+      {
+        "name": "Thomas Frank",
+        "points": 116
+      },
+      {
+        "name": "Fabian Hürzeler",
+        "points": 119
+      },
+      {
+        "name": "Enzo Maresca",
+        "points": 94
+      },
+      {
+        "name": "Oliver Glasner",
+        "points": 128
+      },
+      {
+        "name": "David Moyes",
+        "points": 137
+      },
+      {
+        "name": "Marco Alexandre Saraiva da Silva",
+        "points": 94
+      },
+      {
+        "name": "Kieran McKenna",
+        "points": 51
+      },
+      {
+        "name": "Ruud van Nistelrooij",
+        "points": 48
+      },
+      {
+        "name": "Arne Slot",
+        "points": 118
+      },
+      {
+        "name": "Pep Guardiola",
+        "points": 113
+      },
+      {
+        "name": "Ruben Filipe Marques Diogo Amorim",
+        "points": 86
+      },
+      {
+        "name": "Eddie Howe",
+        "points": 97
+      },
+      {
+        "name": "Nuno Herlander Simões Espírito Santo",
+        "points": 78
+      },
+      {
+        "name": "Simon Rusk",
+        "points": 38
+      },
+      {
+        "name": "Ange Postecoglou",
+        "points": 58
+      },
+      {
+        "name": "Graham Potter",
+        "points": 84
+      },
+      {
+        "name": "Vítor Manuel de Oliveira Lopes Pereira",
+        "points": 111
+      }
+    ]
   }
 ]

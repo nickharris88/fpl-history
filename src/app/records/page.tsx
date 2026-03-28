@@ -31,6 +31,7 @@ interface TopPerformance {
   goals: number;
   assists: number;
   team: string;
+  position: string;
 }
 
 type Tab = 'total_points' | 'goals' | 'assists' | 'bonus' | 'clean_sheets' | 'hauls';
@@ -117,7 +118,15 @@ export default function RecordsPage() {
             searchKeys={['name', 'team']}
             pageSize={30}
             columns={[
-              { key: 'name', label: 'Player', render: r => <span className="font-medium">{(r as unknown as TopPerformance).name}</span> },
+              { key: 'name', label: 'Player', render: r => {
+                const row = r as unknown as TopPerformance;
+                return (
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{row.name}</span>
+                    {row.position && <PositionBadge position={row.position} />}
+                  </div>
+                );
+              }},
               { key: 'season', label: 'Season' },
               { key: 'gw', label: 'GW' },
               { key: 'team', label: 'Team' },
