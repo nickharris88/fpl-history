@@ -42,17 +42,6 @@ export default function TeamsPage() {
 
       <SeasonSelector value={season} onChange={setSeason} className="mb-8" />
 
-      {teams.length === 0 && (
-        <div className="glass rounded-xl p-8 text-center mb-8">
-          <Shield size={32} className="mx-auto mb-3 text-muted" />
-          <p className="text-lg font-medium mb-2">Team data not available for {season}</p>
-          <p className="text-muted text-sm max-w-md mx-auto">
-            The FPL dataset for seasons 2016-17 through 2019-20 does not include team assignments in the gameweek data.
-            Team breakdowns are available from 2020-21 onwards.
-          </p>
-        </div>
-      )}
-
       {topTeam && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <StatCard label="Top FPL Team" value={topTeam.team} subtitle={`${topTeam.totalPoints} total pts`} icon={<Shield size={20} />} />
@@ -64,10 +53,10 @@ export default function TeamsPage() {
 
       {/* Points by Team */}
       <ChartWrapper title="Total FPL Points by Team" subtitle={`${season} season`} className="mb-8">
-        <ResponsiveContainer width="100%" height={400}>
-          <BarChart data={sorted} layout="vertical" margin={{ left: 80 }}>
+        <ResponsiveContainer width="100%" height={Math.max(500, teams.length * 28)}>
+          <BarChart data={sorted} layout="vertical" margin={{ left: 90 }}>
             <XAxis type="number" />
-            <YAxis type="category" dataKey="team" tick={{ fontSize: 11 }} width={80} />
+            <YAxis type="category" dataKey="team" tick={{ fontSize: 11 }} width={90} interval={0} />
             <Tooltip contentStyle={{ background: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: 8 }} />
             <Bar dataKey="totalPoints" fill="#00ff87" radius={[0, 4, 4, 0]} />
           </BarChart>
@@ -77,10 +66,10 @@ export default function TeamsPage() {
       {/* Goals & Assists */}
       <div className="grid md:grid-cols-2 gap-6 mb-8">
         <ChartWrapper title="Goals by Team">
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={[...teams].sort((a, b) => b.totalGoals - a.totalGoals)} layout="vertical" margin={{ left: 80 }}>
+          <ResponsiveContainer width="100%" height={Math.max(500, teams.length * 28)}>
+            <BarChart data={[...teams].sort((a, b) => b.totalGoals - a.totalGoals)} layout="vertical" margin={{ left: 90 }}>
               <XAxis type="number" />
-              <YAxis type="category" dataKey="team" tick={{ fontSize: 11 }} width={80} />
+              <YAxis type="category" dataKey="team" tick={{ fontSize: 11 }} width={90} interval={0} />
               <Tooltip contentStyle={{ background: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: 8 }} />
               <Bar dataKey="totalGoals" fill="#04f5ff" radius={[0, 4, 4, 0]} />
             </BarChart>
@@ -88,10 +77,10 @@ export default function TeamsPage() {
         </ChartWrapper>
 
         <ChartWrapper title="Clean Sheets by Team">
-          <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={[...teams].sort((a, b) => b.totalCleanSheets - a.totalCleanSheets)} layout="vertical" margin={{ left: 80 }}>
+          <ResponsiveContainer width="100%" height={Math.max(500, teams.length * 28)}>
+            <BarChart data={[...teams].sort((a, b) => b.totalCleanSheets - a.totalCleanSheets)} layout="vertical" margin={{ left: 90 }}>
               <XAxis type="number" />
-              <YAxis type="category" dataKey="team" tick={{ fontSize: 11 }} width={80} />
+              <YAxis type="category" dataKey="team" tick={{ fontSize: 11 }} width={90} interval={0} />
               <Tooltip contentStyle={{ background: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: 8 }} />
               <Bar dataKey="totalCleanSheets" fill="#963cff" radius={[0, 4, 4, 0]} />
             </BarChart>

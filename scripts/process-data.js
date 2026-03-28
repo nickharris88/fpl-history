@@ -17,6 +17,35 @@ const POSITION_MAP = { '1': 'GKP', '2': 'DEF', '3': 'MID', '4': 'FWD', 'GKP': 'G
 // Positions that indicate managers/coaches (not players)
 const MANAGER_POSITIONS = new Set(['AM', '5']);
 
+// Team ID → Team Name mapping per season (for older seasons without team names in GW data)
+// These are from vaastav's Fantasy-Premier-League repo teams data
+const SEASON_TEAM_MAP = {
+  '2016-17': {
+    1: 'Arsenal', 2: 'Bournemouth', 3: 'Burnley', 4: 'Chelsea', 5: 'Crystal Palace',
+    6: 'Everton', 7: 'Hull City', 8: 'Leicester', 9: 'Liverpool', 10: 'Man City',
+    11: 'Man Utd', 12: 'Middlesbrough', 13: 'Southampton', 14: 'Stoke', 15: 'Sunderland',
+    16: 'Swansea', 17: 'Spurs', 18: 'Watford', 19: 'West Brom', 20: 'West Ham',
+  },
+  '2017-18': {
+    1: 'Arsenal', 2: 'Bournemouth', 3: 'Brighton', 4: 'Burnley', 5: 'Chelsea',
+    6: 'Crystal Palace', 7: 'Everton', 8: 'Huddersfield', 9: 'Leicester', 10: 'Liverpool',
+    11: 'Man City', 12: 'Man Utd', 13: 'Newcastle', 14: 'Southampton', 15: 'Stoke',
+    16: 'Swansea', 17: 'Spurs', 18: 'Watford', 19: 'West Brom', 20: 'West Ham',
+  },
+  '2018-19': {
+    1: 'Arsenal', 2: 'Bournemouth', 3: 'Brighton', 4: 'Burnley', 5: 'Cardiff',
+    6: 'Chelsea', 7: 'Crystal Palace', 8: 'Everton', 9: 'Fulham', 10: 'Huddersfield',
+    11: 'Leicester', 12: 'Liverpool', 13: 'Man City', 14: 'Man Utd', 15: 'Newcastle',
+    16: 'Southampton', 17: 'Spurs', 18: 'Watford', 19: 'West Ham', 20: 'Wolves',
+  },
+  '2019-20': {
+    1: 'Arsenal', 2: 'Aston Villa', 3: 'Bournemouth', 4: 'Brighton', 5: 'Burnley',
+    6: 'Chelsea', 7: 'Crystal Palace', 8: 'Everton', 9: 'Leicester', 10: 'Liverpool',
+    11: 'Man City', 12: 'Man Utd', 13: 'Newcastle', 14: 'Norwich', 15: 'Sheffield Utd',
+    16: 'Southampton', 17: 'Spurs', 18: 'Watford', 19: 'West Ham', 20: 'Wolves',
+  },
+};
+
 function parseCSV(filePath) {
   // Some older CSV files are encoded in Latin-1/ISO-8859-1, not UTF-8
   // Try UTF-8 first; if we detect replacement chars, re-read as Latin-1
@@ -84,6 +113,24 @@ for (const season of SEASONS) {
   const players = parseCSV(playersFile);
   const gws = parseCSV(gwsFile);
 
+  // Build element ID → team name mapping for older seasons (no team field in GW data)
+  const elementTeamMap = {};
+  const teamMap = SEASON_TEAM_MAP[season];
+  if (teamMap) {
+    const rawPlayersFile = path.join(RAW_DIR, `${season}_players_raw.csv`);
+    if (fs.existsSync(rawPlayersFile)) {
+      const rawPlayers = parseCSV(rawPlayersFile);
+      for (const rp of rawPlayers) {
+        const elementId = num(rp.id);
+        const teamId = num(rp.team);
+        if (elementId && teamMap[teamId]) {
+          elementTeamMap[elementId] = teamMap[teamId];
+        }
+      }
+      console.log(`  Loaded ${Object.keys(elementTeamMap).length} player→team mappings from players_raw.csv`);
+    }
+  }
+
   // Normalize player data (filter out managers)
   const seasonPlayers = players
     .filter(p => !isManager(p.element_type, p.element_type))
@@ -129,11 +176,16 @@ for (const season of SEASONS) {
   const allSeasonGws = gws.map((g, i) => {
     const pos = String(g.position || g.element_type || '');
     const isMgr = isManager(pos, g.element_type);
+    // Resolve team: use the team field if present, otherwise look up from element ID
+    let team = g.team || '';
+    if (!team && g.element && elementTeamMap[num(g.element)]) {
+      team = elementTeamMap[num(g.element)];
+    }
     return {
       season,
       name: cleanName(g.name || ''),
       position: isMgr ? 'MGR' : (POSITION_MAP[pos] || POSITION_MAP[String(g.element_type)] || 'UNK'),
-      team: g.team || '',
+      team,
       gw: num(g.GW || g.round),
       total_points: num(g.total_points),
       minutes: num(g.minutes),
