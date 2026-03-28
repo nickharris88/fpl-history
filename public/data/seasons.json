@@ -1,0 +1,173 @@
+[
+  {
+    "season": "2016-17",
+    "totalPlayers": 524,
+    "totalGoals": 1029,
+    "totalAssists": 938,
+    "topScorer": {
+      "name": "Alexis S�nchez",
+      "points": 264
+    },
+    "topGoalScorer": {
+      "name": "Harry Kane",
+      "goals": 29
+    },
+    "topAssister": {
+      "name": "Kevin De Bruyne",
+      "assists": 21
+    },
+    "avgPointsPerPlayer": 59
+  },
+  {
+    "season": "2017-18",
+    "totalPlayers": 515,
+    "totalGoals": 988,
+    "totalAssists": 907,
+    "topScorer": {
+      "name": "Mohamed Salah",
+      "points": 303
+    },
+    "topGoalScorer": {
+      "name": "Mohamed Salah",
+      "goals": 32
+    },
+    "topAssister": {
+      "name": "Kevin De Bruyne",
+      "assists": 18
+    },
+    "avgPointsPerPlayer": 61
+  },
+  {
+    "season": "2018-19",
+    "totalPlayers": 505,
+    "totalGoals": 1038,
+    "totalAssists": 933,
+    "topScorer": {
+      "name": "Mohamed Salah",
+      "points": 259
+    },
+    "topGoalScorer": {
+      "name": "Pierre-Emerick Aubameyang",
+      "goals": 22
+    },
+    "topAssister": {
+      "name": "Eden Hazard",
+      "assists": 15
+    },
+    "avgPointsPerPlayer": 61
+  },
+  {
+    "season": "2019-20",
+    "totalPlayers": 515,
+    "totalGoals": 1001,
+    "totalAssists": 901,
+    "topScorer": {
+      "name": "Kevin De Bruyne",
+      "points": 251
+    },
+    "topGoalScorer": {
+      "name": "Jamie Vardy",
+      "goals": 23
+    },
+    "topAssister": {
+      "name": "Kevin De Bruyne",
+      "assists": 23
+    },
+    "avgPointsPerPlayer": 60
+  },
+  {
+    "season": "2020-21",
+    "totalPlayers": 524,
+    "totalGoals": 986,
+    "totalAssists": 905,
+    "topScorer": {
+      "name": "Bruno Miguel Borges Fernandes",
+      "points": 244
+    },
+    "topGoalScorer": {
+      "name": "Harry Kane",
+      "goals": 23
+    },
+    "topAssister": {
+      "name": "Jamie Vardy",
+      "assists": 14
+    },
+    "avgPointsPerPlayer": 60
+  },
+  {
+    "season": "2021-22",
+    "totalPlayers": 537,
+    "totalGoals": 1037,
+    "totalAssists": 929,
+    "topScorer": {
+      "name": "Mohamed Salah",
+      "points": 265
+    },
+    "topGoalScorer": {
+      "name": "Mohamed Salah",
+      "goals": 23
+    },
+    "topAssister": {
+      "name": "Jarrod Bowen",
+      "assists": 17
+    },
+    "avgPointsPerPlayer": 59
+  },
+  {
+    "season": "2022-23",
+    "totalPlayers": 554,
+    "totalGoals": 1038,
+    "totalAssists": 927,
+    "topScorer": {
+      "name": "Erling Haaland",
+      "points": 272
+    },
+    "topGoalScorer": {
+      "name": "Erling Haaland",
+      "goals": 36
+    },
+    "topAssister": {
+      "name": "Kevin De Bruyne",
+      "assists": 18
+    },
+    "avgPointsPerPlayer": 57
+  },
+  {
+    "season": "2023-24",
+    "totalPlayers": 570,
+    "totalGoals": 1196,
+    "totalAssists": 1071,
+    "topScorer": {
+      "name": "Cole Palmer",
+      "points": 244
+    },
+    "topGoalScorer": {
+      "name": "Erling Haaland",
+      "goals": 27
+    },
+    "topAssister": {
+      "name": "Ollie Watkins",
+      "assists": 18
+    },
+    "avgPointsPerPlayer": 55
+  },
+  {
+    "season": "2024-25",
+    "totalPlayers": 562,
+    "totalGoals": 1081,
+    "totalAssists": 978,
+    "topScorer": {
+      "name": "Mohamed Salah",
+      "points": 344
+    },
+    "topGoalScorer": {
+      "name": "Mohamed Salah",
+      "goals": 29
+    },
+    "topAssister": {
+      "name": "Mohamed Salah",
+      "assists": 18
+    },
+    "avgPointsPerPlayer": 56
+  }
+]

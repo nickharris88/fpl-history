@@ -1,0 +1,169 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import {
+  BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area
+} from 'recharts';
+import { Trophy, Target, Zap } from 'lucide-react';
+import StatCard from '@/components/StatCard';
+import ChartWrapper from '@/components/ChartWrapper';
+import SeasonSelector from '@/components/SeasonSelector';
+import DataTable from '@/components/DataTable';
+import PositionBadge from '@/components/PositionBadge';
+
+interface Player {
+  name: string;
+  position: string;
+  total_points: number;
+  goals: number;
+  assists: number;
+  minutes: number;
+  clean_sheets: number;
+  bonus: number;
+  ict_index: number;
+  cost: number;
+  creativity: number;
+  influence: number;
+  threat: number;
+}
+
+interface GWAvg {
+  gw: number;
+  avgPoints: number;
+  totalGoals: number;
+  totalAssists: number;
+  playerCount: number;
+  highScore: number;
+  topPlayer: string;
+}
+
+export default function SeasonsPage() {
+  const [season, setSeason] = useState('2024-25');
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [gwData, setGwData] = useState<GWAvg[]>([]);
+  const [posFilter, setPosFilter] = useState('ALL');
+
+  useEffect(() => {
+    Promise.all([
+      fetch(`/data/players-${season}.json`).then(r => r.json()),
+      fetch(`/data/gw-${season}.json`).then(r => r.json()),
+    ]).then(([p, g]) => {
+      setPlayers(p);
+      setGwData(g);
+    });
+  }, [season]);
+
+  const filtered = posFilter === 'ALL' ? players : players.filter(p => p.position === posFilter);
+  const activePlayers = players.filter(p => p.minutes > 0);
+  const topScorer = players[0];
+  const totalGoals = activePlayers.reduce((s, p) => s + p.goals, 0);
+  const totalAssists = activePlayers.reduce((s, p) => s + p.assists, 0);
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <h1 className="text-3xl font-bold mb-2">
+        <span className="gradient-text">Season Explorer</span>
+      </h1>
+      <p className="text-muted mb-6">Dive deep into each season&apos;s data — player stats, gameweek trends, and more.</p>
+
+      <SeasonSelector value={season} onChange={setSeason} className="mb-8" />
+
+      {/* Season Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <StatCard label="Top Scorer" value={topScorer?.total_points || 0} subtitle={topScorer?.name || ''} icon={<Trophy size={20} />} />
+        <StatCard label="Active Players" value={activePlayers.length} subtitle="With minutes played" />
+        <StatCard label="Total Goals" value={totalGoals} icon={<Target size={20} />} />
+        <StatCard label="Total Assists" value={totalAssists} icon={<Zap size={20} />} />
+      </div>
+
+      {/* GW Charts */}
+      <div className="grid md:grid-cols-2 gap-6 mb-8">
+        <ChartWrapper title="Avg Points Per GW" subtitle="Average points for players with minutes">
+          <ResponsiveContainer width="100%" height={260}>
+            <AreaChart data={gwData}>
+              <XAxis dataKey="gw" />
+              <YAxis />
+              <Tooltip contentStyle={{ background: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: 8 }} />
+              <defs>
+                <linearGradient id="gwGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#00ff87" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#00ff87" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <Area type="monotone" dataKey="avgPoints" stroke="#00ff87" fill="url(#gwGrad)" strokeWidth={2} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </ChartWrapper>
+
+        <ChartWrapper title="Goals & Assists Per GW" subtitle="Total across all players">
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={gwData}>
+              <XAxis dataKey="gw" />
+              <YAxis />
+              <Tooltip contentStyle={{ background: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: 8 }} />
+              <Bar dataKey="totalGoals" fill="#00ff87" radius={[2, 2, 0, 0]} name="Goals" />
+              <Bar dataKey="totalAssists" fill="#04f5ff" radius={[2, 2, 0, 0]} name="Assists" />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartWrapper>
+      </div>
+
+      <ChartWrapper title="Highest GW Score" subtitle="Top individual performer each gameweek" className="mb-8">
+        <ResponsiveContainer width="100%" height={260}>
+          <LineChart data={gwData}>
+            <XAxis dataKey="gw" />
+            <YAxis />
+            <Tooltip
+              contentStyle={{ background: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: 8 }}
+              formatter={(value) => [`${value} pts`, 'High Score']}
+            />
+            <Line type="monotone" dataKey="highScore" stroke="#963cff" strokeWidth={2} dot={{ fill: '#963cff', r: 3 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </ChartWrapper>
+
+      {/* Player Table */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <h2 className="text-xl font-semibold mr-4">Player Rankings</h2>
+        {['ALL', 'GKP', 'DEF', 'MID', 'FWD'].map(pos => (
+          <button
+            key={pos}
+            onClick={() => setPosFilter(pos)}
+            className={`px-3 py-1 rounded-lg text-xs border transition-all ${
+              posFilter === pos
+                ? 'bg-accent/15 text-accent border-accent/30'
+                : 'bg-card border-border text-muted hover:text-foreground'
+            }`}
+          >
+            {pos}
+          </button>
+        ))}
+      </div>
+
+      <DataTable
+        data={filtered as unknown as Record<string, unknown>[]}
+        searchable
+        searchKeys={['name']}
+        columns={[
+          { key: 'name', label: 'Player', render: (r) => {
+            const row = r as unknown as Player;
+            return (
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{row.name}</span>
+                <PositionBadge position={row.position} />
+              </div>
+            );
+          }},
+          { key: 'total_points', label: 'Points', render: (r) => <span className="font-mono text-accent">{(r as unknown as Player).total_points}</span> },
+          { key: 'goals', label: 'Goals' },
+          { key: 'assists', label: 'Assists' },
+          { key: 'minutes', label: 'Mins' },
+          { key: 'clean_sheets', label: 'CS' },
+          { key: 'bonus', label: 'Bonus' },
+          { key: 'ict_index', label: 'ICT' },
+          { key: 'cost', label: 'Cost', render: (r) => `£${(r as unknown as Player).cost}m` },
+        ]}
+      />
+    </div>
+  );
+}
