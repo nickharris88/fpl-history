@@ -113,22 +113,29 @@ for (const season of SEASONS) {
   const players = parseCSV(playersFile);
   const gws = parseCSV(gwsFile);
 
-  // Build element ID → team name mapping for older seasons (no team field in GW data)
+  // Build element ID → team name + position mapping
+  // For 2016-19: no position or team in GW data — both come from players_raw.csv
+  // For 2020+:   no team needed (GW has it), but position is present
   const elementTeamMap = {};
+  const elementPositionMap = {}; // element ID → position string (GKP/DEF/MID/FWD)
   const teamMap = SEASON_TEAM_MAP[season];
-  if (teamMap) {
-    const rawPlayersFile = path.join(RAW_DIR, `${season}_players_raw.csv`);
-    if (fs.existsSync(rawPlayersFile)) {
-      const rawPlayers = parseCSV(rawPlayersFile);
-      for (const rp of rawPlayers) {
-        const elementId = num(rp.id);
+  const rawPlayersFile = path.join(RAW_DIR, `${season}_players_raw.csv`);
+  if (fs.existsSync(rawPlayersFile)) {
+    const rawPlayers = parseCSV(rawPlayersFile);
+    for (const rp of rawPlayers) {
+      const elementId = num(rp.id);
+      if (!elementId) continue;
+      // Team mapping (older seasons only)
+      if (teamMap) {
         const teamId = num(rp.team);
-        if (elementId && teamMap[teamId]) {
-          elementTeamMap[elementId] = teamMap[teamId];
-        }
+        if (teamMap[teamId]) elementTeamMap[elementId] = teamMap[teamId];
       }
-      console.log(`  Loaded ${Object.keys(elementTeamMap).length} player→team mappings from players_raw.csv`);
+      // Position mapping (all seasons — element_type: 1=GKP, 2=DEF, 3=MID, 4=FWD)
+      if (rp.element_type) {
+        elementPositionMap[elementId] = POSITION_MAP[String(rp.element_type)] || 'UNK';
+      }
     }
+    console.log(`  Loaded ${Object.keys(elementTeamMap).length} team + ${Object.keys(elementPositionMap).length} position mappings`);
   }
 
   // Normalize player data (filter out managers)
@@ -176,15 +183,21 @@ for (const season of SEASONS) {
   const allSeasonGws = gws.map((g, i) => {
     const pos = String(g.position || g.element_type || '');
     const isMgr = isManager(pos, g.element_type);
-    // Resolve team: use the team field if present, otherwise look up from element ID
+    const elementId = num(g.element);
+    // Resolve team: GW field first, then element ID lookup (older seasons)
     let team = g.team || '';
-    if (!team && g.element && elementTeamMap[num(g.element)]) {
-      team = elementTeamMap[num(g.element)];
+    if (!team && elementId && elementTeamMap[elementId]) {
+      team = elementTeamMap[elementId];
+    }
+    // Resolve position: GW field first, then players_raw lookup (older seasons have no position column)
+    let position = POSITION_MAP[pos] || 'UNK';
+    if (position === 'UNK' && elementId && elementPositionMap[elementId]) {
+      position = elementPositionMap[elementId];
     }
     return {
       season,
       name: cleanName(g.name || ''),
-      position: isMgr ? 'MGR' : (POSITION_MAP[pos] || POSITION_MAP[String(g.element_type)] || 'UNK'),
+      position: isMgr ? 'MGR' : position,
       team,
       gw: num(g.GW || g.round),
       total_points: num(g.total_points),
