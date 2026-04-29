@@ -9,16 +9,49 @@ interface PlayerIndex {
   name: string;
   seasons: string[];
   positions: string[];
+  primaryPosition: string;
   total_points: number;
   goals: number;
   assists: number;
+  clean_sheets: number;
+}
+
+function parseDisambiguatedName(fullName: string): { displayName: string; team: string | null } {
+  const match = fullName.match(/^(.+?)\s+\((.+?)\)$/);
+  if (match) return { displayName: match[1], team: match[2] };
+  return { displayName: fullName, team: null };
+}
+
+function getSecondaryStats(p: PlayerIndex) {
+  const pos = p.primaryPosition;
+  if (pos === 'GKP') return [
+    { label: 'Points', value: p.total_points.toLocaleString() },
+    { label: 'Clean Sheets', value: p.clean_sheets },
+    { label: 'Assists', value: p.assists },
+  ];
+  if (pos === 'DEF') return [
+    { label: 'Points', value: p.total_points.toLocaleString() },
+    { label: 'Clean Sheets', value: p.clean_sheets },
+    { label: 'Goals', value: p.goals },
+  ];
+  if (pos === 'FWD') return [
+    { label: 'Points', value: p.total_points.toLocaleString() },
+    { label: 'Goals', value: p.goals },
+    { label: 'Assists', value: p.assists },
+  ];
+  // MID default
+  return [
+    { label: 'Points', value: p.total_points.toLocaleString() },
+    { label: 'Goals', value: p.goals },
+    { label: 'Assists', value: p.assists },
+  ];
 }
 
 export default function PlayersPage() {
   const [players, setPlayers] = useState<PlayerIndex[]>([]);
   const [search, setSearch] = useState('');
   const [posFilter, setPosFilter] = useState('ALL');
-  const [sortBy, setSortBy] = useState<'total_points' | 'goals' | 'assists'>('total_points');
+  const [sortBy, setSortBy] = useState<'total_points' | 'goals' | 'assists' | 'clean_sheets'>('total_points');
 
   useEffect(() => {
     fetch('/data/search-index.json').then(r => r.json()).then(setPlayers);
@@ -71,7 +104,7 @@ export default function PlayersPage() {
       {/* Sort */}
       <div className="flex items-center gap-2 mb-6">
         <span className="text-muted text-sm">Sort by:</span>
-        {([['total_points', 'Points'], ['goals', 'Goals'], ['assists', 'Assists']] as const).map(([key, label]) => (
+        {([['total_points', 'Points'], ['goals', 'Goals'], ['assists', 'Assists'], ['clean_sheets', 'Clean Sheets']] as const).map(([key, label]) => (
           <button
             key={key}
             onClick={() => setSortBy(key)}
@@ -90,38 +123,39 @@ export default function PlayersPage() {
 
       {/* Player Grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {filtered.slice(0, 60).map((p, i) => (
-          <Link
-            key={p.name}
-            href={`/players/${encodeURIComponent(p.name)}`}
-            className="glass rounded-xl p-4 hover:bg-card-hover hover:border-accent/20 transition-all group animate-fade-in"
-            style={{ animationDelay: `${Math.min(i * 20, 300)}ms` }}
-          >
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <h3 className="font-semibold text-sm group-hover:text-accent transition-colors">{p.name}</h3>
-                <p className="text-xs text-muted">{p.seasons.length} season{p.seasons.length !== 1 ? 's' : ''}</p>
+        {filtered.slice(0, 60).map((p, i) => {
+          const { displayName, team } = parseDisambiguatedName(p.name);
+          const stats = getSecondaryStats(p);
+          return (
+            <Link
+              key={p.name}
+              href={`/players/${encodeURIComponent(p.name)}`}
+              className="glass rounded-xl p-4 hover:bg-card-hover hover:border-accent/20 transition-all group animate-fade-in"
+              style={{ animationDelay: `${Math.min(i * 20, 300)}ms` }}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <h3 className="font-semibold text-sm group-hover:text-accent transition-colors">{displayName}</h3>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="text-xs text-muted">{p.seasons.length} season{p.seasons.length !== 1 ? 's' : ''}</p>
+                    {team && (
+                      <span className="text-xs text-muted/60 bg-card-hover px-1.5 py-0.5 rounded border border-border/50">{team}</span>
+                    )}
+                  </div>
+                </div>
+                <PositionBadge position={p.primaryPosition || p.positions[0]} />
               </div>
-              <div className="flex gap-1">
-                {p.positions.map(pos => <PositionBadge key={pos} position={pos} />)}
+              <div className="grid grid-cols-3 gap-2 mt-3">
+                {stats.map(s => (
+                  <div key={s.label}>
+                    <p className="text-xs text-muted">{s.label}</p>
+                    <p className="font-mono text-sm text-accent">{s.value}</p>
+                  </div>
+                ))}
               </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2 mt-3">
-              <div>
-                <p className="text-xs text-muted">Points</p>
-                <p className="font-mono text-sm text-accent">{p.total_points.toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted">Goals</p>
-                <p className="font-mono text-sm">{p.goals}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted">Assists</p>
-                <p className="font-mono text-sm">{p.assists}</p>
-              </div>
-            </div>
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
       </div>
 
       {filtered.length > 60 && (

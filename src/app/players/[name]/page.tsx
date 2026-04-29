@@ -171,13 +171,20 @@ export default function PlayerProfilePage() {
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-accent to-accent2 flex items-center justify-center shrink-0">
             <span className="text-2xl font-bold text-background">
-              {profile.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+              {profile.name.replace(/\s+\(.+?\)$/, '').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
             </span>
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">{profile.name}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">
+              {profile.name.replace(/\s+\(.+?\)$/, '')}
+            </h1>
             <div className="flex items-center gap-2 mt-1">
               {career.positions.map(pos => <PositionBadge key={pos} position={pos} />)}
+              {profile.name.match(/\((.+?)\)$/) && (
+                <span className="text-xs text-muted bg-card-hover px-1.5 py-0.5 rounded border border-border/50">
+                  {profile.name.match(/\((.+?)\)$/)![1]}
+                </span>
+              )}
               <span className="text-muted text-sm">· {career.seasonCount} seasons</span>
             </div>
           </div>

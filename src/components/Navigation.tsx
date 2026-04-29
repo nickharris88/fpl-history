@@ -14,6 +14,15 @@ const NAV_ITEMS = [
   { href: '/teams', label: 'Teams', icon: Shield },
 ];
 
+// Bottom tab bar shows 5 key items on mobile
+const MOBILE_TAB_ITEMS = [
+  { href: '/', label: 'Home', icon: Home },
+  { href: '/seasons', label: 'Seasons', icon: BarChart3 },
+  { href: '/players', label: 'Players', icon: Users },
+  { href: '/records', label: 'Records', icon: Trophy },
+  { href: '/compare', label: 'Compare', icon: GitCompare },
+];
+
 export default function Navigation() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -63,7 +72,7 @@ export default function Navigation() {
         </div>
       </div>
 
-      {/* Mobile menu */}
+      {/* Mobile dropdown menu (Teams + overflow) */}
       {open && (
         <div className="md:hidden border-t border-border bg-card/95 backdrop-blur-lg">
           <div className="px-4 py-3 space-y-1">
@@ -88,6 +97,27 @@ export default function Navigation() {
           </div>
         </div>
       )}
+
+      {/* Mobile bottom tab bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass border-t border-border">
+        <div className="flex items-center justify-around px-2 py-2 safe-area-pb">
+          {MOBILE_TAB_ITEMS.map(({ href, label, icon: Icon }) => {
+            const active = pathname === href || (href !== '/' && pathname.startsWith(href));
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-all ${
+                  active ? 'text-accent' : 'text-muted'
+                }`}
+              >
+                <Icon size={20} />
+                <span className="text-[10px] font-medium">{label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
     </nav>
   );
 }

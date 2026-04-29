@@ -13,6 +13,7 @@ interface PlayerIndex {
   name: string;
   seasons: string[];
   positions: string[];
+  primaryPosition: string;
   total_points: number;
   goals: number;
   assists: number;
@@ -195,7 +196,7 @@ export default function ComparePage() {
                   <span className="text-xs text-muted ml-2">{p.total_points} pts</span>
                 </div>
                 <div className="flex gap-1">
-                  {p.positions.map(pos => <PositionBadge key={pos} position={pos} />)}
+                  <PositionBadge position={p.primaryPosition || p.positions[0]} />
                 </div>
               </button>
             ))}

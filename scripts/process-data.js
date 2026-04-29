@@ -361,7 +361,17 @@ for (const g of allGameweeks.filter(g => g.position !== 'MGR' && g.minutes > 0))
   c.minutes += g.minutes;
   c.clean_sheets += g.clean_sheets;
   c.bonus += g.bonus;
-  if (g.position && g.position !== 'UNK') c.positions.add(g.position);
+  if (g.position && g.position !== 'UNK') {
+    c.positions.add(g.position);
+    // Track most common position in the most recent season
+    if (!c.lastSeason || g.season > c.lastSeason) {
+      c.lastSeason = g.season;
+      c.seasonPosCounts = { [g.position]: 1 };
+    } else if (g.season === c.lastSeason) {
+      if (!c.seasonPosCounts) c.seasonPosCounts = {};
+      c.seasonPosCounts[g.position] = (c.seasonPosCounts[g.position] || 0) + 1;
+    }
+  }
 }
 
 const careerStats = Object.values(playerCareerMap).map(c => ({
@@ -485,14 +495,24 @@ for (const season of SEASONS) {
 fs.writeFileSync(path.join(OUT_DIR, 'best-xi.json'), JSON.stringify(bestXIs));
 
 // Player search index (lightweight)
-const searchIndex = careerStats.slice(0, 1000).map(p => ({
-  name: p.name,
-  seasons: p.seasons,
-  positions: p.positions,
-  total_points: p.total_points,
-  goals: p.goals,
-  assists: p.assists,
-}));
+const searchIndex = careerStats.slice(0, 1000).map(p => {
+  // Primary position = most common in their last active season
+  let primaryPosition = p.positions[0] || 'UNK';
+  if (p.seasonPosCounts) {
+    const sorted = Object.entries(p.seasonPosCounts).sort((a, b) => b[1] - a[1]);
+    if (sorted.length > 0) primaryPosition = sorted[0][0];
+  }
+  return {
+    name: p.name,
+    seasons: p.seasons,
+    positions: p.positions,
+    primaryPosition,
+    total_points: p.total_points,
+    goals: p.goals,
+    assists: p.assists,
+    clean_sheets: p.clean_sheets,
+  };
+});
 fs.writeFileSync(path.join(OUT_DIR, 'search-index.json'), JSON.stringify(searchIndex));
 
 // Per-player detailed data for player profiles (top 300 players)
