@@ -264,20 +264,73 @@ for (const season of SEASONS) {
 // Write season summaries
 fs.writeFileSync(path.join(OUT_DIR, 'seasons.json'), JSON.stringify(seasonSummaries, null, 2));
 
-// Write per-season player data
+// ── Detect name conflicts ──────────────────────────────────────────────────
+// A conflict is when the same name appears at 2+ different teams in the same
+// season — proof of two distinct players sharing a name.
+// We resolve these by appending "(Team)" to each player's name.
+const nameSeasonTeams = {}; // "name||season" → Set<team>
+for (const g of allGameweeks) {
+  if (!g.name || !g.team) continue;
+  const k = `${g.name}||${g.season}`;
+  if (!nameSeasonTeams[k]) nameSeasonTeams[k] = new Set();
+  nameSeasonTeams[k].add(g.team);
+}
+
+// Names that are ambiguous in at least one season
+const ambiguousNames = new Set();
+for (const [key, teams] of Object.entries(nameSeasonTeams)) {
+  if (teams.size > 1) {
+    const name = key.split('||')[0];
+    ambiguousNames.add(name);
+    console.log(`  Conflict detected: "${name}" appears at [${[...teams].join(', ')}]`);
+  }
+}
+
+// For ambiguous names, build a (name, season) → primary team map
+// Primary team = the team a player appeared at most GWs that season
+const nameSeasonPrimaryTeam = {};
+for (const name of ambiguousNames) {
+  for (const season of SEASONS) {
+    const gwsForPlayer = allGameweeks.filter(g => g.name === name && g.season === season && g.team);
+    if (!gwsForPlayer.length) continue;
+    const teamCounts = {};
+    gwsForPlayer.forEach(g => { teamCounts[g.team] = (teamCounts[g.team] || 0) + 1; });
+    const primaryTeam = Object.entries(teamCounts).sort((a, b) => b[1] - a[1])[0][0];
+    nameSeasonPrimaryTeam[`${name}||${season}`] = primaryTeam;
+  }
+}
+
+function disambiguatedName(name, season) {
+  if (!ambiguousNames.has(name)) return name;
+  const team = nameSeasonPrimaryTeam[`${name}||${season}`];
+  return team ? `${name} (${team})` : name;
+}
+
+// Apply disambiguated names to allPlayers and allGameweeks
+for (const p of allPlayers) {
+  p.name = disambiguatedName(p.name, p.season);
+}
+for (const g of allGameweeks) {
+  g.name = disambiguatedName(g.name, g.season);
+}
+
+// Re-write per-season player data with corrected names
 for (const season of SEASONS) {
   const sp = allPlayers.filter(p => p.season === season).sort((a, b) => b.total_points - a.total_points);
   fs.writeFileSync(path.join(OUT_DIR, `players-${season}.json`), JSON.stringify(sp));
 }
 
-// All-time records - aggregate across seasons (players only)
+// ── Career aggregation ─────────────────────────────────────────────────────
+// Aggregate from GW data (not players CSV) so disambiguated names and team
+// info are correct — the players CSV can have two same-named players in one
+// season with no way to tell them apart.
 const playerCareerMap = {};
-for (const p of allPlayers.filter(p => p.position !== 'MGR')) {
-  const key = p.name;
+for (const g of allGameweeks.filter(g => g.position !== 'MGR' && g.minutes > 0)) {
+  const key = g.name;
   if (!playerCareerMap[key]) {
     playerCareerMap[key] = {
-      name: p.name,
-      seasons: [],
+      name: g.name,
+      seasons: new Set(),
       total_points: 0,
       goals: 0,
       assists: 0,
@@ -288,20 +341,21 @@ for (const p of allPlayers.filter(p => p.position !== 'MGR')) {
     };
   }
   const c = playerCareerMap[key];
-  c.seasons.push(p.season);
-  c.total_points += p.total_points;
-  c.goals += p.goals;
-  c.assists += p.assists;
-  c.minutes += p.minutes;
-  c.clean_sheets += p.clean_sheets;
-  c.bonus += p.bonus;
-  c.positions.add(p.position);
+  c.seasons.add(g.season);
+  c.total_points += g.total_points;
+  c.goals += g.goals;
+  c.assists += g.assists;
+  c.minutes += g.minutes;
+  c.clean_sheets += g.clean_sheets;
+  c.bonus += g.bonus;
+  if (g.position && g.position !== 'UNK') c.positions.add(g.position);
 }
 
 const careerStats = Object.values(playerCareerMap).map(c => ({
   ...c,
+  seasons: [...c.seasons].sort(),
   positions: [...c.positions].filter(p => p !== 'UNK' || c.positions.size === 1),
-  seasonCount: c.seasons.length,
+  seasonCount: c.seasons.size,
   ppg: c.minutes > 0 ? Math.round((c.total_points / (c.minutes / 90)) * 100) / 100 : 0,
 })).sort((a, b) => b.total_points - a.total_points);
 
