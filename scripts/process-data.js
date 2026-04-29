@@ -494,6 +494,28 @@ for (const season of SEASONS) {
 }
 fs.writeFileSync(path.join(OUT_DIR, 'best-xi.json'), JSON.stringify(bestXIs));
 
+// ── Team cross-season history ────────────────────────────────────────────────
+const teamHistory = {};
+for (const season of SEASONS) {
+  const seasonTeamFile = path.join(OUT_DIR, `teams-${season}.json`);
+  if (!fs.existsSync(seasonTeamFile)) continue;
+  const teamData = JSON.parse(fs.readFileSync(seasonTeamFile, 'utf-8'));
+  for (const t of teamData) {
+    if (!teamHistory[t.team]) teamHistory[t.team] = [];
+    teamHistory[t.team].push({
+      season,
+      totalPoints: t.totalPoints,
+      totalGoals: t.totalGoals,
+      totalAssists: t.totalAssists,
+      totalCleanSheets: t.totalCleanSheets,
+      topPlayer: t.topPlayer,
+      topPlayerPoints: t.topPlayerPoints,
+      playerCount: t.playerCount,
+    });
+  }
+}
+fs.writeFileSync(path.join(OUT_DIR, 'team-history.json'), JSON.stringify(teamHistory));
+
 // Player search index (lightweight)
 const searchIndex = careerStats.slice(0, 1000).map(p => {
   // Primary position = most common in their last active season

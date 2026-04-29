@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { Menu, X, Trophy, Users, BarChart3, GitCompare, Shield, Home } from 'lucide-react';
+import { Menu, X, Trophy, Users, BarChart3, GitCompare, Shield, Home, HelpCircle } from 'lucide-react';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Dashboard', icon: Home },
@@ -12,15 +12,16 @@ const NAV_ITEMS = [
   { href: '/records', label: 'Records', icon: Trophy },
   { href: '/compare', label: 'Compare', icon: GitCompare },
   { href: '/teams', label: 'Teams', icon: Shield },
+  { href: '/quiz', label: 'Quiz', icon: HelpCircle },
 ];
 
 // Bottom tab bar shows 5 key items on mobile
 const MOBILE_TAB_ITEMS = [
   { href: '/', label: 'Home', icon: Home },
-  { href: '/seasons', label: 'Seasons', icon: BarChart3 },
   { href: '/players', label: 'Players', icon: Users },
-  { href: '/records', label: 'Records', icon: Trophy },
+  { href: '/quiz', label: 'Quiz', icon: HelpCircle },
   { href: '/compare', label: 'Compare', icon: GitCompare },
+  { href: '/seasons', label: 'Seasons', icon: BarChart3 },
 ];
 
 export default function Navigation() {

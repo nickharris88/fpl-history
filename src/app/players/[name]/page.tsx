@@ -6,7 +6,7 @@ import Link from 'next/link';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, AreaChart, Area,
-  PieChart, Pie, Cell, ComposedChart, Line
+  PieChart, Pie, Cell, ComposedChart, Line, ReferenceLine
 } from 'recharts';
 import { ArrowLeft, Trophy, Target, Zap, Clock, Star, Home, Plane, Shield } from 'lucide-react';
 import StatCard from '@/components/StatCard';
@@ -139,6 +139,41 @@ export default function PlayerProfilePage() {
 
   const { career, seasons, gameweeks, consistency, distribution, homeAway, captainPoints, valuePerSeason } = profile;
   const seasonGws = selectedSeason ? gameweeks.filter(g => g.season === selectedSeason) : gameweeks;
+
+  // Career GW timeline — aggregate DGWs (same season+gw number = sum pts)
+  const gwMap = new Map<string, { season: string; gw: number; pts: number; isDGW: boolean }>();
+  for (const g of gameweeks) {
+    const key = `${g.season}-${g.gw}`;
+    if (gwMap.has(key)) {
+      const existing = gwMap.get(key)!;
+      existing.pts += g.pts;
+      existing.isDGW = true;
+    } else {
+      gwMap.set(key, { season: g.season, gw: g.gw, pts: g.pts, isDGW: false });
+    }
+  }
+  const careerTimeline = Array.from(gwMap.values())
+    .sort((a, b) => a.season.localeCompare(b.season) || a.gw - b.gw)
+    .map((g, i) => ({ ...g, idx: i }));
+
+  // Season boundaries for reference lines
+  const seasonBoundaries: number[] = [];
+  let lastSeason = '';
+  careerTimeline.forEach((g, i) => {
+    if (g.season !== lastSeason && i > 0) seasonBoundaries.push(i);
+    lastSeason = g.season;
+  });
+
+  // DGW highlights
+  const dgwGws = careerTimeline.filter(g => g.isDGW);
+
+  const gwColor = (pts: number) => {
+    if (pts >= 12) return '#00ff87';
+    if (pts >= 9) return '#44cc88';
+    if (pts >= 6) return '#ffcc00';
+    if (pts >= 2) return '#ff8844';
+    return '#ff4466';
+  };
 
   const DIST_COLORS = ['#ff4466', '#ff8844', '#ffcc00', '#44cc88', '#00ff87'];
   const distData = [
@@ -385,6 +420,62 @@ export default function PlayerProfilePage() {
               <Line type="monotone" dataKey="cost" stroke="#ff8844" strokeWidth={2} dot={{ fill: '#ff8844', r: 3 }} name="cost" yAxisId="right" />
             </ComposedChart>
           </ResponsiveContainer>
+        </ChartWrapper>
+      )}
+
+      {/* Career GW Timeline */}
+      <ChartWrapper title="Career GW Timeline" subtitle="All gameweeks across every season — colour-coded by score" className="mb-8">
+        <div className="flex gap-3 text-xs text-muted mb-3 flex-wrap">
+          {[['#ff4466', '0-1 Blank'], ['#ff8844', '2-5 Low'], ['#ffcc00', '6-8 Good'], ['#44cc88', '9-11 Great'], ['#00ff87', '12+ Haul']].map(([color, label]) => (
+            <span key={label} className="flex items-center gap-1">
+              <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: color }} />
+              {label}
+            </span>
+          ))}
+          {dgwGws.length > 0 && <span className="flex items-center gap-1 ml-2 text-yellow-400">★ DGW ({dgwGws.length} total)</span>}
+        </div>
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={careerTimeline} barCategoryGap={1}>
+            <XAxis dataKey="idx" hide />
+            <YAxis domain={[0, 'auto']} tick={{ fontSize: 10 }} width={25} />
+            <Tooltip
+              contentStyle={{ background: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: 8, fontSize: 12 }}
+              formatter={(value, _, props) => {
+                const g = props.payload;
+                return [`${value} pts${g.isDGW ? ' ★ DGW' : ''}`, `GW${g.gw} ${g.season}`];
+              }}
+              labelFormatter={() => ''}
+            />
+            {seasonBoundaries.map(i => (
+              <ReferenceLine key={i} x={i} stroke="#2a2a4a" strokeDasharray="2 2" />
+            ))}
+            <Bar dataKey="pts" radius={[2, 2, 0, 0]}>
+              {careerTimeline.map((g, i) => (
+                <Cell key={i} fill={gwColor(g.pts)} opacity={g.isDGW ? 1 : 0.85} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+        {/* Season labels */}
+        <div className="flex justify-between mt-1 px-1">
+          {seasons.map(s => (
+            <span key={s.season} className="text-[9px] text-muted/60">{s.season.slice(2)}</span>
+          ))}
+        </div>
+      </ChartWrapper>
+
+      {/* DGW Highlights */}
+      {dgwGws.length > 0 && (
+        <ChartWrapper title={`Double Gameweek Scores (${dgwGws.length})`} subtitle="Combined points from both fixtures in DGW weeks" className="mb-8">
+          <div className="flex flex-wrap gap-2">
+            {dgwGws.sort((a, b) => b.pts - a.pts).map((g, i) => (
+              <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg border transition-all"
+                style={{ borderColor: gwColor(g.pts), backgroundColor: `${gwColor(g.pts)}15` }}>
+                <span className="text-xs text-muted">{g.season} GW{g.gw}</span>
+                <span className="font-mono font-bold text-sm" style={{ color: gwColor(g.pts) }}>{g.pts}pts</span>
+              </div>
+            ))}
+          </div>
         </ChartWrapper>
       )}
 
