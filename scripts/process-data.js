@@ -97,6 +97,17 @@ function isManager(position, elementType) {
   return MANAGER_POSITIONS.has(String(position)) || MANAGER_POSITIONS.has(String(elementType));
 }
 
+// Canonical name aliases — maps variant names → single canonical name
+// Used when FPL changed a player's name format between seasons
+const NAME_ALIASES = {
+  'Son Heung-min': 'Heung-Min Son',
+  'Son Heung-Min': 'Heung-Min Son',
+};
+
+function resolveAlias(name) {
+  return NAME_ALIASES[name] || name;
+}
+
 function num(v) { const n = parseFloat(v); return isNaN(n) ? 0 : n; }
 
 // Process all seasons
@@ -146,7 +157,7 @@ for (const season of SEASONS) {
       season,
       first_name: p.first_name || '',
       second_name: p.second_name || '',
-      name: cleanName(`${p.first_name || ''} ${p.second_name || ''}`.trim()),
+      name: resolveAlias(cleanName(`${p.first_name || ''} ${p.second_name || ''}`.trim())),
       goals: num(p.goals_scored),
       assists: num(p.assists),
       total_points: num(p.total_points),
@@ -173,7 +184,7 @@ for (const season of SEASONS) {
     .map((p, i) => ({
       id: `${season}-mgr-${i}`,
       season,
-      name: cleanName(`${p.first_name || ''} ${p.second_name || ''}`.trim()),
+      name: resolveAlias(cleanName(`${p.first_name || ''} ${p.second_name || ''}`.trim())),
       total_points: num(p.total_points),
       minutes: 0,
       position: 'MGR',
@@ -196,7 +207,7 @@ for (const season of SEASONS) {
     }
     return {
       season,
-      name: cleanName(g.name || ''),
+      name: resolveAlias(cleanName(g.name || '')),
       position: isMgr ? 'MGR' : position,
       team,
       gw: num(g.GW || g.round),
