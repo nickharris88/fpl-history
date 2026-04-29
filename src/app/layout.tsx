@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import Navigation from "@/components/Navigation";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -35,6 +36,7 @@ export default function RootLayout({
           <p>FPL History — Data sourced from <a href="https://github.com/vaastav/Fantasy-Premier-League" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">vaastav/Fantasy-Premier-League</a></p>
           <p className="mt-1">9 seasons · 6,500+ player records · 224,000+ gameweek entries</p>
         </footer>
+        <Analytics />
       </body>
     </html>
   );
