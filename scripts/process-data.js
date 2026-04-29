@@ -98,10 +98,22 @@ function isManager(position, elementType) {
 }
 
 // Canonical name aliases — maps variant names → single canonical name
-// Used when FPL changed a player's name format between seasons
+// Used when FPL changed a player's name format between seasons (not team transfers)
 const NAME_ALIASES = {
+  // Son — FPL swapped name order between seasons
   'Son Heung-min': 'Heung-Min Son',
   'Son Heung-Min': 'Heung-Min Son',
+  // Bernardo Silva — FPL dropped middle names
+  'Bernardo Mota Veiga de Carvalho e Silva': 'Bernardo Silva',
+  'Bernardo Veiga de Carvalho e Silva': 'Bernardo Silva',
+  // Willian — capitalisation change
+  'Willian Borges Da Silva': 'Willian Borges da Silva',
+  // Almirón — FPL dropped surname
+  'Miguel Almirón Rejala': 'Miguel Almirón',
+  'Miguel Almirón': 'Miguel Almirón',
+  // Marc Cucurella — FPL dropped surname
+  'Marc Cucurella Saseta': 'Marc Cucurella',
+  // João Pedro Cancelo vs João Pedro (Brighton) — different players, handled by team disambiguation
 };
 
 function resolveAlias(name) {
