@@ -468,6 +468,22 @@ for (const season of SEASONS) {
   fs.writeFileSync(path.join(OUT_DIR, `teams-${season}.json`), JSON.stringify(teamStats));
 }
 
+// ── Best XI per season (4-4-2 formation) ────────────────────────────────────
+const bestXIs = {};
+for (const season of SEASONS) {
+  const sp = allPlayers.filter(p => p.season === season && p.minutes > 0 && p.position !== 'MGR');
+  const byPos = { GKP: [], DEF: [], MID: [], FWD: [] };
+  sp.forEach(p => { if (byPos[p.position]) byPos[p.position].push(p); });
+  for (const pos of Object.keys(byPos)) {
+    byPos[pos].sort((a, b) => b.total_points - a.total_points);
+  }
+  const pick = (pos, n) => byPos[pos].slice(0, n).map(p => ({
+    name: p.name, position: pos, points: p.total_points, goals: p.goals, assists: p.assists,
+  }));
+  bestXIs[season] = { gkp: pick('GKP', 1), def: pick('DEF', 4), mid: pick('MID', 4), fwd: pick('FWD', 2) };
+}
+fs.writeFileSync(path.join(OUT_DIR, 'best-xi.json'), JSON.stringify(bestXIs));
+
 // Player search index (lightweight)
 const searchIndex = careerStats.slice(0, 1000).map(p => ({
   name: p.name,
@@ -488,9 +504,71 @@ for (const p of careerStats.slice(0, 300)) {
   const gwData = allGameweeks.filter(g => g.name === name);
   const seasonData = allPlayers.filter(pl => pl.name === name);
 
+  // ── Compute advanced analytics ──────────────────────────────────────
+  const playedGws = gwData.filter(g => g.minutes > 0);
+  const totalGws = playedGws.length;
+
+  // Consistency: % of played GWs scoring 6+, 9+, 12+
+  const gw6plus = playedGws.filter(g => g.total_points >= 6).length;
+  const gw9plus = playedGws.filter(g => g.total_points >= 9).length;
+  const gw12plus = playedGws.filter(g => g.total_points >= 12).length;
+  const consistency = totalGws > 0 ? {
+    pct6plus: Math.round((gw6plus / totalGws) * 100),
+    pct9plus: Math.round((gw9plus / totalGws) * 100),
+    pct12plus: Math.round((gw12plus / totalGws) * 100),
+    gwsPlayed: totalGws,
+  } : { pct6plus: 0, pct9plus: 0, pct12plus: 0, gwsPlayed: 0 };
+
+  // Blank vs haul distribution (0-1=blank, 2-5=okay, 6-8=good, 9-11=great, 12+=haul)
+  const distribution = { blank: 0, low: 0, good: 0, great: 0, haul: 0 };
+  playedGws.forEach(g => {
+    if (g.total_points <= 1) distribution.blank++;
+    else if (g.total_points <= 5) distribution.low++;
+    else if (g.total_points <= 8) distribution.good++;
+    else if (g.total_points <= 11) distribution.great++;
+    else distribution.haul++;
+  });
+
+  // Home vs away splits
+  const homeGws = playedGws.filter(g => g.was_home);
+  const awayGws = playedGws.filter(g => !g.was_home);
+  const homeAway = {
+    home: {
+      games: homeGws.length,
+      totalPts: homeGws.reduce((s, g) => s + g.total_points, 0),
+      avgPts: homeGws.length > 0 ? Math.round((homeGws.reduce((s, g) => s + g.total_points, 0) / homeGws.length) * 10) / 10 : 0,
+      goals: homeGws.reduce((s, g) => s + g.goals, 0),
+      assists: homeGws.reduce((s, g) => s + g.assists, 0),
+    },
+    away: {
+      games: awayGws.length,
+      totalPts: awayGws.reduce((s, g) => s + g.total_points, 0),
+      avgPts: awayGws.length > 0 ? Math.round((awayGws.reduce((s, g) => s + g.total_points, 0) / awayGws.length) * 10) / 10 : 0,
+      goals: awayGws.reduce((s, g) => s + g.goals, 0),
+      assists: awayGws.reduce((s, g) => s + g.assists, 0),
+    },
+  };
+
+  // Captain tracker: if captained every GW, total doubled points
+  const captainPoints = playedGws.reduce((s, g) => s + g.total_points * 2, 0);
+
+  // Value: points per million per season
+  const valuePerSeason = seasonData
+    .filter(s => s.cost > 0 && s.total_points > 0)
+    .map(s => ({
+      season: s.season,
+      cost: s.cost,
+      ptsPerM: Math.round((s.total_points / s.cost) * 10) / 10,
+    }));
+
   playerProfiles[name] = {
     name,
     career: p,
+    consistency,
+    distribution,
+    homeAway,
+    captainPoints,
+    valuePerSeason,
     seasons: seasonData.map(s => ({
       season: s.season,
       total_points: s.total_points,
@@ -516,6 +594,8 @@ for (const p of careerStats.slice(0, 300)) {
       cs: g.clean_sheets,
       bonus: g.bonus,
       team: g.team,
+      home: g.was_home,
+      val: g.value,
     })),
   };
 }

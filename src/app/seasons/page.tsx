@@ -27,6 +27,21 @@ interface Player {
   threat: number;
 }
 
+interface BestXIPlayer {
+  name: string;
+  position: string;
+  points: number;
+  goals: number;
+  assists: number;
+}
+
+interface BestXI {
+  gkp: BestXIPlayer[];
+  def: BestXIPlayer[];
+  mid: BestXIPlayer[];
+  fwd: BestXIPlayer[];
+}
+
 interface GWAvg {
   gw: number;
   avgPoints: number;
@@ -41,15 +56,18 @@ export default function SeasonsPage() {
   const [season, setSeason] = useState('2024-25');
   const [players, setPlayers] = useState<Player[]>([]);
   const [gwData, setGwData] = useState<GWAvg[]>([]);
+  const [bestXI, setBestXI] = useState<BestXI | null>(null);
   const [posFilter, setPosFilter] = useState('ALL');
 
   useEffect(() => {
     Promise.all([
       fetch(`/data/players-${season}.json`).then(r => r.json()),
       fetch(`/data/gw-${season}.json`).then(r => r.json()),
-    ]).then(([p, g]) => {
+      fetch('/data/best-xi.json').then(r => r.json()),
+    ]).then(([p, g, xi]) => {
       setPlayers(p);
       setGwData(g);
+      setBestXI(xi[season] || null);
     });
   }, [season]);
 
@@ -122,6 +140,34 @@ export default function SeasonsPage() {
         </ResponsiveContainer>
       </ChartWrapper>
 
+      {/* Best XI */}
+      {bestXI && (
+        <ChartWrapper title={`Best XI of ${season}`} subtitle="Top performers by position (4-4-2)" className="mb-8">
+          <div className="space-y-3">
+            {[
+              { label: 'GK', players: bestXI.gkp, color: '#ffcc00' },
+              { label: 'DEF', players: bestXI.def, color: '#04f5ff' },
+              { label: 'MID', players: bestXI.mid, color: '#00ff87' },
+              { label: 'FWD', players: bestXI.fwd, color: '#ff4466' },
+            ].map(({ label, players: pos, color }) => (
+              <div key={label} className="flex items-start gap-3">
+                <span className="text-xs font-bold px-2 py-1 rounded mt-1 shrink-0" style={{ backgroundColor: `${color}20`, color }}>{label}</span>
+                <div className="flex flex-wrap gap-2 flex-1">
+                  {pos.map(p => (
+                    <div key={p.name} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card/50 border border-border/50 hover:border-accent/30 transition-all">
+                      <span className="text-sm font-medium">{p.name}</span>
+                      <span className="text-xs font-mono text-accent">{p.points}pts</span>
+                      {p.goals > 0 && <span className="text-xs text-muted">{p.goals}G</span>}
+                      {p.assists > 0 && <span className="text-xs text-muted">{p.assists}A</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </ChartWrapper>
+      )}
+
       {/* Player Table */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <h2 className="text-xl font-semibold mr-4">Player Rankings</h2>
@@ -144,6 +190,7 @@ export default function SeasonsPage() {
         data={filtered as unknown as Record<string, unknown>[]}
         searchable
         searchKeys={['name']}
+        defaultSortKey="total_points"
         columns={[
           { key: 'name', label: 'Player', render: (r) => {
             const row = r as unknown as Player;

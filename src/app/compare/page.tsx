@@ -50,6 +50,7 @@ interface PlayerProfile {
 }
 
 const COLORS = ['#00ff87', '#963cff', '#04f5ff'];
+const DEFAULT_PLAYERS = ['Mohamed Salah', 'Harry Kane', 'Kevin De Bruyne'];
 
 export default function ComparePage() {
   const [searchIndex, setSearchIndex] = useState<PlayerIndex[]>([]);
@@ -65,6 +66,33 @@ export default function ComparePage() {
     ]).then(([s, p]) => {
       setSearchIndex(s);
       setProfileIndex(p);
+
+      // Auto-load default comparison
+      const defaults = DEFAULT_PLAYERS.filter(name => p.find((e: ProfileIndex) => e.name === name));
+      if (defaults.length > 0) {
+        setSelected(defaults);
+        const chunksNeeded = new Map<number, string[]>();
+        defaults.forEach(name => {
+          const entry = p.find((e: ProfileIndex) => e.name === name);
+          if (entry) {
+            if (!chunksNeeded.has(entry.chunk)) chunksNeeded.set(entry.chunk, []);
+            chunksNeeded.get(entry.chunk)!.push(name);
+          }
+        });
+        Promise.all(
+          Array.from(chunksNeeded.entries()).map(([chunk]) =>
+            fetch(`/data/profiles-${chunk}.json`).then(r => r.json())
+          )
+        ).then(results => {
+          const merged: Record<string, PlayerProfile> = {};
+          for (const data of results) {
+            for (const name of defaults) {
+              if (data[name]) merged[name] = data[name];
+            }
+          }
+          setProfiles(merged);
+        });
+      }
     });
   }, []);
 

@@ -6,7 +6,8 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
-import { Trophy, Target, Users, Zap, TrendingUp, Star, Calendar, ArrowRight } from 'lucide-react';
+import { Trophy, Target, Users, Zap, TrendingUp, Star, Calendar, ArrowRight, Search } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import StatCard from '@/components/StatCard';
 import ChartWrapper from '@/components/ChartWrapper';
 
@@ -45,9 +46,11 @@ interface TopPerformance {
 const COLORS = ['#00ff87', '#04f5ff', '#963cff', '#ff4466', '#ffaa00', '#44ff88', '#8844ff', '#ff6644', '#00ccff'];
 
 export default function Dashboard() {
+  const router = useRouter();
   const [seasons, setSeasons] = useState<SeasonSummary[]>([]);
   const [allTime, setAllTime] = useState<AllTimePlayer[]>([]);
   const [topPerfs, setTopPerfs] = useState<TopPerformance[]>([]);
+  const [heroSearch, setHeroSearch] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -96,10 +99,51 @@ export default function Dashboard() {
           <br />
           <span className="text-foreground/80">History & Analytics</span>
         </h1>
-        <p className="text-muted text-lg max-w-2xl mx-auto">
+        <p className="text-muted text-lg max-w-2xl mx-auto mb-6">
           Explore 9 seasons of FPL data — from 2016-17 to 2024-25. Over 224,000 gameweek
           entries, 6,500+ player records, and 2,600+ unique players.
         </p>
+        {/* Hero Search */}
+        <div className="relative max-w-md mx-auto">
+          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            type="text"
+            placeholder="Search any player..."
+            value={heroSearch}
+            onChange={e => setHeroSearch(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && heroSearch.trim()) {
+                const match = allTime.find(p => p.name.toLowerCase().includes(heroSearch.toLowerCase()));
+                if (match) router.push(`/players/${encodeURIComponent(match.name)}`);
+                else router.push(`/players?q=${encodeURIComponent(heroSearch)}`);
+              }
+            }}
+            className="w-full pl-11 pr-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-accent/50 transition-colors"
+          />
+          {heroSearch.length >= 2 && (
+            <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-10 overflow-hidden max-h-64 overflow-y-auto">
+              {allTime
+                .filter(p => p.name.toLowerCase().includes(heroSearch.toLowerCase()))
+                .slice(0, 6)
+                .map(p => (
+                  <button
+                    key={p.name}
+                    onClick={() => { setHeroSearch(''); router.push(`/players/${encodeURIComponent(p.name)}`); }}
+                    className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-card-hover transition-colors text-left"
+                  >
+                    <div>
+                      <span className="text-sm font-medium">{p.name}</span>
+                      <span className="text-xs text-muted ml-2">{p.seasonCount} seasons · {p.positions.join('/')}</span>
+                    </div>
+                    <span className="text-accent font-mono text-sm">{p.total_points.toLocaleString()}</span>
+                  </button>
+                ))}
+              {allTime.filter(p => p.name.toLowerCase().includes(heroSearch.toLowerCase())).length === 0 && (
+                <div className="px-4 py-3 text-muted text-sm">No players found</div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Key Stats */}
@@ -183,6 +227,33 @@ export default function Dashboard() {
             </LineChart>
           </ResponsiveContainer>
         </ChartWrapper>
+      </div>
+
+      {/* Position Leaderboards */}
+      <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {[
+          { pos: 'GKP', label: 'Top Goalkeepers', color: '#ffcc00' },
+          { pos: 'DEF', label: 'Top Defenders', color: '#04f5ff' },
+          { pos: 'MID', label: 'Top Midfielders', color: '#00ff87' },
+          { pos: 'FWD', label: 'Top Forwards', color: '#ff4466' },
+        ].map(({ pos, label, color }) => (
+          <ChartWrapper key={pos} title={label} subtitle="All-time career points">
+            <div className="space-y-1.5">
+              {allTime
+                .filter(p => p.positions.includes(pos))
+                .slice(0, 5)
+                .map((p, i) => (
+                  <Link href={`/players/${encodeURIComponent(p.name)}`} key={p.name} className="flex items-center gap-2 p-2 rounded-lg hover:bg-card-hover transition-all group">
+                    <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0" style={{ backgroundColor: `${color}20`, color }}>
+                      {i + 1}
+                    </span>
+                    <span className="text-xs font-medium truncate flex-1 group-hover:text-accent transition-colors">{p.name}</span>
+                    <span className="font-mono text-xs" style={{ color }}>{p.total_points.toLocaleString()}</span>
+                  </Link>
+                ))}
+            </div>
+          </ChartWrapper>
+        ))}
       </div>
 
       {/* Season Top Scorers */}

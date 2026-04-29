@@ -5,9 +5,10 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, AreaChart, Area
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, AreaChart, Area,
+  PieChart, Pie, Cell, ComposedChart, Line
 } from 'recharts';
-import { ArrowLeft, Trophy, Target, Zap, Clock, Star } from 'lucide-react';
+import { ArrowLeft, Trophy, Target, Zap, Clock, Star, Home, Plane, Shield } from 'lucide-react';
 import StatCard from '@/components/StatCard';
 import ChartWrapper from '@/components/ChartWrapper';
 import PositionBadge from '@/components/PositionBadge';
@@ -38,6 +39,37 @@ interface GWEntry {
   cs: number;
   bonus: number;
   team: string;
+  home: boolean;
+  val: number;
+}
+
+interface Consistency {
+  pct6plus: number;
+  pct9plus: number;
+  pct12plus: number;
+  gwsPlayed: number;
+}
+
+interface Distribution {
+  blank: number;
+  low: number;
+  good: number;
+  great: number;
+  haul: number;
+}
+
+interface HomeAwaySplit {
+  games: number;
+  totalPts: number;
+  avgPts: number;
+  goals: number;
+  assists: number;
+}
+
+interface ValueSeason {
+  season: string;
+  cost: number;
+  ptsPerM: number;
 }
 
 interface PlayerProfile {
@@ -53,6 +85,11 @@ interface PlayerProfile {
     positions: string[];
     ppg: number;
   };
+  consistency: Consistency;
+  distribution: Distribution;
+  homeAway: { home: HomeAwaySplit; away: HomeAwaySplit };
+  captainPoints: number;
+  valuePerSeason: ValueSeason[];
   seasons: SeasonStats[];
   gameweeks: GWEntry[];
 }
@@ -100,8 +137,17 @@ export default function PlayerProfilePage() {
     );
   }
 
-  const { career, seasons, gameweeks } = profile;
+  const { career, seasons, gameweeks, consistency, distribution, homeAway, captainPoints, valuePerSeason } = profile;
   const seasonGws = selectedSeason ? gameweeks.filter(g => g.season === selectedSeason) : gameweeks;
+
+  const DIST_COLORS = ['#ff4466', '#ff8844', '#ffcc00', '#44cc88', '#00ff87'];
+  const distData = [
+    { name: 'Blank (0-1)', value: distribution.blank, color: DIST_COLORS[0] },
+    { name: 'Low (2-5)', value: distribution.low, color: DIST_COLORS[1] },
+    { name: 'Good (6-8)', value: distribution.good, color: DIST_COLORS[2] },
+    { name: 'Great (9-11)', value: distribution.great, color: DIST_COLORS[3] },
+    { name: 'Haul (12+)', value: distribution.haul, color: DIST_COLORS[4] },
+  ];
 
   // Radar data (normalize to 100-scale)
   const latestSeason = seasons[seasons.length - 1];
@@ -223,6 +269,117 @@ export default function PlayerProfilePage() {
           </ResponsiveContainer>
         </ChartWrapper>
       </div>
+
+      {/* ── Advanced Analytics ── */}
+
+      {/* Consistency + Distribution */}
+      <div className="grid md:grid-cols-2 gap-6 mb-8">
+        <ChartWrapper title="Consistency Score" subtitle={`Based on ${consistency.gwsPlayed} GWs played`}>
+          <div className="space-y-4 px-2">
+            {[
+              { label: '6+ pts', pct: consistency.pct6plus, color: '#ffcc00', desc: 'Good returns' },
+              { label: '9+ pts', pct: consistency.pct9plus, color: '#44cc88', desc: 'Great returns' },
+              { label: '12+ pts', pct: consistency.pct12plus, color: '#00ff87', desc: 'Haul territory' },
+            ].map(({ label, pct, color, desc }) => (
+              <div key={label}>
+                <div className="flex justify-between text-sm mb-1">
+                  <span className="text-muted">{label} <span className="text-xs">({desc})</span></span>
+                  <span className="font-mono font-semibold" style={{ color }}>{pct}%</span>
+                </div>
+                <div className="h-3 rounded-full bg-card overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </ChartWrapper>
+
+        <ChartWrapper title="Points Distribution" subtitle="Breakdown of GW returns when playing">
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={distData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={2}
+                label={({ name, value }: { name?: string; value: number }) => value > 0 ? `${(name || '').split(' ')[0]}: ${value}` : ''}>
+                {distData.map((d, i) => <Cell key={i} fill={d.color} />)}
+              </Pie>
+              <Tooltip contentStyle={{ background: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: 8 }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartWrapper>
+      </div>
+
+      {/* Home/Away + Captain */}
+      <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <ChartWrapper title="Home vs Away" subtitle="Performance splits" className="md:col-span-2">
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              { label: 'Home', data: homeAway.home, icon: <Home size={16} />, color: '#00ff87' },
+              { label: 'Away', data: homeAway.away, icon: <Plane size={16} />, color: '#04f5ff' },
+            ].map(({ label, data, icon, color }) => (
+              <div key={label} className="p-4 rounded-lg bg-card/50 border border-border/50">
+                <div className="flex items-center gap-2 mb-3">
+                  <span style={{ color }}>{icon}</span>
+                  <span className="font-medium text-sm">{label}</span>
+                  <span className="text-xs text-muted">({data.games} GWs)</span>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted">Avg Pts</span>
+                    <span className="font-mono font-semibold" style={{ color }}>{data.avgPts}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted">Total Pts</span>
+                    <span className="font-mono">{data.totalPts.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted">Goals</span>
+                    <span className="font-mono">{data.goals}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted">Assists</span>
+                    <span className="font-mono">{data.assists}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </ChartWrapper>
+
+        <ChartWrapper title="Captain Tracker" subtitle="If captained every GW">
+          <div className="flex flex-col items-center justify-center h-full py-4">
+            <Shield size={32} className="text-accent mb-2" />
+            <p className="text-3xl font-bold gradient-text font-mono">{captainPoints.toLocaleString()}</p>
+            <p className="text-muted text-xs mt-1">total captain points</p>
+            <div className="mt-3 px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/20">
+              <p className="text-xs text-center">
+                <span className="text-accent font-mono">{Math.round(captainPoints / (consistency.gwsPlayed || 1) * 10) / 10}</span>
+                <span className="text-muted ml-1">avg per GW if captained</span>
+              </p>
+            </div>
+          </div>
+        </ChartWrapper>
+      </div>
+
+      {/* Value Over Time */}
+      {valuePerSeason.length > 0 && (
+        <ChartWrapper title="Value Analysis" subtitle="Points per £1m cost over time" className="mb-8">
+          <ResponsiveContainer width="100%" height={260}>
+            <ComposedChart data={valuePerSeason}>
+              <XAxis dataKey="season" tick={{ fontSize: 11 }} />
+              <YAxis yAxisId="left" />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
+              <Tooltip
+                contentStyle={{ background: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: 8 }}
+                formatter={(value, name) => [
+                  name === 'ptsPerM' ? `${value} pts/£m` : `£${value}m`,
+                  name === 'ptsPerM' ? 'Value' : 'Cost',
+                ]}
+              />
+              <Bar dataKey="ptsPerM" fill="#00ff87" radius={[4, 4, 0, 0]} name="ptsPerM" yAxisId="left" />
+              <Line type="monotone" dataKey="cost" stroke="#ff8844" strokeWidth={2} dot={{ fill: '#ff8844', r: 3 }} name="cost" yAxisId="right" />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </ChartWrapper>
+      )}
 
       {/* Season Breakdown Table */}
       <ChartWrapper title="Season Breakdown" className="mb-8">
