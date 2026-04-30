@@ -338,7 +338,10 @@ for (const name of ambiguousNames) {
 
 function disambiguatedName(name, season) {
   if (!ambiguousNames.has(name)) return name;
-  const team = nameSeasonPrimaryTeam[`${name}||${season}`];
+  // Only append team if THIS season had a conflict (multiple teams same season)
+  const k = `${name}||${season}`;
+  if (!nameSeasonTeams[k] || nameSeasonTeams[k].size <= 1) return name;
+  const team = nameSeasonPrimaryTeam[k];
   return team ? `${name} (${team})` : name;
 }
 
@@ -397,13 +400,55 @@ for (const g of allGameweeks.filter(g => g.position !== 'MGR' && g.minutes > 0))
   }
 }
 
-const careerStats = Object.values(playerCareerMap).map(c => ({
+let careerStats = Object.values(playerCareerMap).map(c => ({
   ...c,
   seasons: [...c.seasons].sort(),
   positions: [...c.positions].filter(p => p !== 'UNK' || c.positions.size === 1),
   seasonCount: c.seasons.size,
   ppg: c.minutes > 0 ? Math.round((c.total_points / (c.minutes / 90)) * 100) / 100 : 0,
 })).sort((a, b) => b.total_points - a.total_points);
+
+// ── Merge suffixed transfer duplicates ──────────────────────────────────────
+// "Diogo Jota (Liverpool)" and "Diogo Jota" are the same player who transferred.
+// A suffixed entry should merge into its base-name counterpart if:
+//   1. The base-name entry exists
+//   2. Their season sets do NOT overlap (different seasons = same person transferred)
+// This preserves legitimate same-season duplicates (two different players, same name).
+const baseNameMap = {};
+for (const p of careerStats) {
+  const base = p.name.replace(/\s*\(.+?\)$/, '');
+  if (base === p.name) baseNameMap[base] = p; // index un-suffixed entries
+}
+
+const toRemove = new Set();
+for (const p of careerStats) {
+  const base = p.name.replace(/\s*\(.+?\)$/, '');
+  if (base === p.name) continue; // not suffixed
+  const baseEntry = baseNameMap[base];
+  if (!baseEntry) continue;
+  // Check for season overlap
+  const overlap = p.seasons.some(s => baseEntry.seasons.includes(s));
+  if (overlap) continue; // different people sharing a name in the same season — keep separate
+  // Merge suffixed entry into base entry
+  baseEntry.total_points += p.total_points;
+  baseEntry.goals += p.goals;
+  baseEntry.assists += p.assists;
+  baseEntry.minutes += p.minutes;
+  baseEntry.clean_sheets += p.clean_sheets;
+  baseEntry.bonus += p.bonus;
+  baseEntry.seasons = [...new Set([...baseEntry.seasons, ...p.seasons])].sort();
+  baseEntry.seasonCount = baseEntry.seasons.length;
+  p.positions.forEach(pos => { if (!baseEntry.positions.includes(pos)) baseEntry.positions.push(pos); });
+  if (p.lastSeason > (baseEntry.lastSeason || '')) {
+    baseEntry.lastSeason = p.lastSeason;
+    baseEntry.lastPosition = p.lastPosition;
+    baseEntry.seasonPosCounts = p.seasonPosCounts;
+  }
+  baseEntry.ppg = baseEntry.minutes > 0 ? Math.round((baseEntry.total_points / (baseEntry.minutes / 90)) * 100) / 100 : 0;
+  toRemove.add(p.name);
+}
+
+careerStats = careerStats.filter(p => !toRemove.has(p.name)).sort((a, b) => b.total_points - a.total_points);
 
 fs.writeFileSync(path.join(OUT_DIR, 'all-time.json'), JSON.stringify(careerStats.slice(0, 500)));
 
