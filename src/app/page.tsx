@@ -93,7 +93,7 @@ export default function Dashboard() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
       {/* Hero */}
-      <div className="text-center mb-12 animate-fade-in">
+      <div className="text-center mb-12 animate-fade-in" style={{ overflow: 'visible', position: 'relative', zIndex: 40 }}>
         <h1 className="text-4xl sm:text-5xl font-bold mb-4">
           <span className="gradient-text">Fantasy Premier League</span>
           <br />
@@ -104,7 +104,7 @@ export default function Dashboard() {
           entries, 6,500+ player records, and 2,600+ unique players.
         </p>
         {/* Hero Search */}
-        <div className="relative max-w-md mx-auto">
+        <div className="relative max-w-md mx-auto" style={{ zIndex: 50 }}>
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
           <input
             type="text"
@@ -121,7 +121,7 @@ export default function Dashboard() {
             className="w-full pl-11 pr-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-accent/50 transition-colors"
           />
           {heroSearch.length >= 2 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-10 overflow-hidden max-h-64 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-50 overflow-hidden max-h-64 overflow-y-auto">
               {allTime
                 .filter(p => p.name.toLowerCase().includes(heroSearch.toLowerCase()))
                 .slice(0, 6)
