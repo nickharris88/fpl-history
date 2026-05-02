@@ -30,10 +30,15 @@ export default function DataTable<T extends Record<string, unknown>>({
   searchKeys = [],
   onRowClick,
   defaultSortKey,
-  defaultSortDir = 'desc',
+  defaultSortDir,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string>(defaultSortKey || columns[0]?.key || '');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(defaultSortDir);
+  // If an explicit direction is given, use it.
+  // Otherwise: if a specific sort key was provided assume numeric → desc;
+  // if defaulting to the first column assume a name/string → asc.
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(
+    defaultSortDir ?? (defaultSortKey ? 'desc' : 'asc')
+  );
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState('');
 
@@ -66,7 +71,10 @@ export default function DataTable<T extends Record<string, unknown>>({
       setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortKey(key);
-      setSortDir('desc');
+      // Auto-detect direction based on column value type:
+      // numbers → descending (highest first), strings → ascending (A → Z)
+      const sample = data[0]?.[key];
+      setSortDir(typeof sample === 'number' ? 'desc' : 'asc');
     }
     setPage(0);
   };
