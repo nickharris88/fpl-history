@@ -271,20 +271,36 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Season Top Scorers */}
-      <ChartWrapper title="Top FPL Scorer Each Season" subtitle="Highest total points per season" className="mb-8">
-        <div className="grid sm:grid-cols-3 gap-3">
+      {/* Season Summary Cards */}
+      <ChartWrapper title="Season-by-Season MVPs" subtitle="Top scorer, top goal-getter and top creator each campaign" className="mb-8">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {seasons.map((s, i) => (
-            <Link href={profileHref(s.topScorer.name)} key={s.season} className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border border-border/50 hover:border-accent/50 hover:bg-card-hover transition-all" style={{ animationDelay: `${i * 50}ms` }}>
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-accent/20 to-accent2/20 flex items-center justify-center shrink-0">
-                <Trophy size={18} className="text-accent" />
+            <div key={s.season} className="rounded-xl bg-card/50 border border-border/50 hover:border-accent/30 transition-all p-4 animate-fade-in" style={{ animationDelay: `${i * 30}ms` }}>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-bold gradient-text">{s.season}</span>
+                <span className="text-[10px] text-muted">{s.totalGoals} goals · {s.totalAssists} assists</span>
               </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted">{s.season}</p>
-                <p className="font-medium text-sm truncate">{parseDisambiguatedName(s.topScorer.name).displayName}</p>
-                <p className="text-accent text-xs font-mono">{s.topScorer.points} pts</p>
+              <div className="space-y-2">
+                <Link href={profileHref(s.topScorer.name)} className="flex items-center gap-2 group">
+                  <Trophy size={12} className="text-accent shrink-0" />
+                  <span className="text-xs text-muted w-12 shrink-0">Points</span>
+                  <span className="text-xs font-medium flex-1 truncate group-hover:text-accent transition-colors">{parseDisambiguatedName(s.topScorer.name).displayName}</span>
+                  <span className="text-xs font-mono text-accent">{s.topScorer.points}</span>
+                </Link>
+                <Link href={profileHref(s.topGoalScorer.name)} className="flex items-center gap-2 group">
+                  <Target size={12} className="text-[#04f5ff] shrink-0" />
+                  <span className="text-xs text-muted w-12 shrink-0">Goals</span>
+                  <span className="text-xs font-medium flex-1 truncate group-hover:text-accent transition-colors">{parseDisambiguatedName(s.topGoalScorer.name).displayName}</span>
+                  <span className="text-xs font-mono" style={{ color: '#04f5ff' }}>{s.topGoalScorer.goals}</span>
+                </Link>
+                <Link href={profileHref(s.topAssister.name)} className="flex items-center gap-2 group">
+                  <Zap size={12} className="text-[#963cff] shrink-0" />
+                  <span className="text-xs text-muted w-12 shrink-0">Assists</span>
+                  <span className="text-xs font-medium flex-1 truncate group-hover:text-accent transition-colors">{parseDisambiguatedName(s.topAssister.name).displayName}</span>
+                  <span className="text-xs font-mono" style={{ color: '#963cff' }}>{s.topAssister.assists}</span>
+                </Link>
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       </ChartWrapper>

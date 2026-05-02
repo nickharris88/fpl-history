@@ -12,6 +12,7 @@ import DataTable from '@/components/DataTable';
 import PositionBadge from '@/components/PositionBadge';
 import Link from 'next/link';
 import { parseDisambiguatedName, profileHref } from '@/lib/playerName';
+import { useSharedSeason } from '@/lib/seasonContext';
 
 interface Player {
   name: string;
@@ -55,7 +56,7 @@ interface GWAvg {
 }
 
 export default function SeasonsPage() {
-  const [season, setSeason] = useState('2024-25');
+  const [season, setSeason] = useSharedSeason();
   const [players, setPlayers] = useState<Player[]>([]);
   const [gwData, setGwData] = useState<GWAvg[]>([]);
   const [bestXI, setBestXI] = useState<BestXI | null>(null);

@@ -16,6 +16,42 @@ interface PlayerIndex {
 }
 
 type GameState = 'playing' | 'correct' | 'revealed';
+type Difficulty = 'easy' | 'medium' | 'hard';
+
+const DIFFICULTY_POOL: Record<Difficulty, number> = { easy: 50, medium: 200, hard: 1000 };
+const DIFFICULTY_LABEL: Record<Difficulty, string> = {
+  easy: 'Easy · top 50',
+  medium: 'Medium · top 200',
+  hard: 'Hard · top 1000',
+};
+const STORAGE_KEY = 'fpl-quiz-stats-v1';
+
+interface PersistedStats {
+  best: Record<Difficulty, { score: number; streak: number }>;
+  difficulty: Difficulty;
+}
+
+function loadStats(): PersistedStats {
+  if (typeof window === 'undefined') {
+    return { best: { easy: { score: 0, streak: 0 }, medium: { score: 0, streak: 0 }, hard: { score: 0, streak: 0 } }, difficulty: 'medium' };
+  }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as PersistedStats;
+      // Backfill any missing difficulty buckets.
+      const defaults = { easy: { score: 0, streak: 0 }, medium: { score: 0, streak: 0 }, hard: { score: 0, streak: 0 } };
+      const best = { ...defaults, ...(parsed.best || {}) };
+      return { best, difficulty: parsed.difficulty || 'medium' };
+    }
+  } catch {/* ignore */}
+  return { best: { easy: { score: 0, streak: 0 }, medium: { score: 0, streak: 0 }, hard: { score: 0, streak: 0 } }, difficulty: 'medium' };
+}
+
+function saveStats(stats: PersistedStats) {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(stats)); } catch {/* ignore */}
+}
 
 function stripDisambiguation(name: string): string {
   return name.replace(/\s*\([^)]+\)\s*$/, '').trim();
@@ -101,16 +137,20 @@ function pickRandom(players: PlayerIndex[], exclude: Set<number>): { player: Pla
 }
 
 export default function QuizPage() {
-  const [allPlayers, setAllPlayers] = useState<PlayerIndex[]>([]);
+  const [searchIndex, setSearchIndex] = useState<PlayerIndex[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Persisted bests + selected difficulty
+  const [stats, setStats] = useState<PersistedStats>(() => loadStats());
+  const difficulty = stats.difficulty;
 
   // Game state
   const [currentPlayer, setCurrentPlayer] = useState<PlayerIndex | null>(null);
   const [usedIndices, setUsedIndices] = useState<Set<number>>(new Set());
   const [gameState, setGameState] = useState<GameState>('playing');
 
-  // Score tracking
+  // Score tracking (current run, resets on difficulty change)
   const [score, setScore] = useState(0);
   const [streak, setStreakState] = useState(0);
   const [totalAttempts, setTotalAttempts] = useState(0);
@@ -125,7 +165,7 @@ export default function QuizPage() {
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Load top 200 players
+  // Load full search index up front; we slice per difficulty.
   useEffect(() => {
     fetch('/data/search-index.json')
       .then((r) => {
@@ -133,7 +173,7 @@ export default function QuizPage() {
         return r.json();
       })
       .then((data: PlayerIndex[]) => {
-        setAllPlayers(data.slice(0, 200));
+        setSearchIndex(data);
         setLoading(false);
       })
       .catch((e) => {
@@ -141,6 +181,8 @@ export default function QuizPage() {
         setLoading(false);
       });
   }, []);
+
+  const allPlayers = searchIndex.slice(0, DIFFICULTY_POOL[difficulty]);
 
   const startNewRound = useCallback(
     (players: PlayerIndex[], used: Set<number>) => {
@@ -191,9 +233,27 @@ export default function QuizPage() {
 
     if (isCorrect) {
       setGameState('correct');
-      setScore((s) => s + 1);
-      setStreakState((s) => s + 1);
+      const newScore = score + 1;
+      const newStreak = streak + 1;
+      setScore(newScore);
+      setStreakState(newStreak);
       setTotalAttempts((t) => t + 1);
+      // Update persistent best if exceeded.
+      const cur = stats.best[difficulty] || { score: 0, streak: 0 };
+      if (newScore > cur.score || newStreak > cur.streak) {
+        const next: PersistedStats = {
+          ...stats,
+          best: {
+            ...stats.best,
+            [difficulty]: {
+              score: Math.max(cur.score, newScore),
+              streak: Math.max(cur.streak, newStreak),
+            },
+          },
+        };
+        setStats(next);
+        saveStats(next);
+      }
     } else {
       // Shake animation
       setShaking(true);
@@ -212,6 +272,19 @@ export default function QuizPage() {
 
   const handleNext = () => {
     startNewRound(allPlayers, usedIndices);
+  };
+
+  const handleDifficulty = (d: Difficulty) => {
+    if (d === difficulty) return;
+    const next: PersistedStats = { ...stats, difficulty: d };
+    setStats(next);
+    saveStats(next);
+    // Reset current run; the useEffect on allPlayers picks a fresh player.
+    setScore(0);
+    setStreakState(0);
+    setTotalAttempts(0);
+    setUsedIndices(new Set());
+    setCurrentPlayer(null);
   };
 
   const handleHint = () => {
@@ -262,8 +335,25 @@ export default function QuizPage() {
         <p className="text-muted text-sm">Guess the player from their career stats</p>
       </div>
 
+      {/* Difficulty selector */}
+      <div className="flex flex-wrap gap-2 mb-3">
+        {(['easy', 'medium', 'hard'] as const).map((d) => (
+          <button
+            key={d}
+            onClick={() => handleDifficulty(d)}
+            className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
+              difficulty === d
+                ? 'bg-accent/15 text-accent border-accent/40'
+                : 'bg-card border-border text-muted hover:text-foreground'
+            }`}
+          >
+            {DIFFICULTY_LABEL[d]}
+          </button>
+        ))}
+      </div>
+
       {/* Score bar */}
-      <div className="glass rounded-xl px-4 py-3 mb-5 flex items-center justify-between text-sm">
+      <div className="glass rounded-xl px-4 py-3 mb-5 flex flex-wrap items-center justify-between gap-y-2 text-sm">
         <div className="flex items-center gap-4">
           <span className="text-muted">
             Score:{' '}
@@ -276,11 +366,13 @@ export default function QuizPage() {
             </span>
           </span>
         </div>
-        <div className="flex items-center gap-1 text-muted">
-          <Trophy className="w-4 h-4" />
-          <span>
-            {totalAttempts} played
+        <div className="flex items-center gap-3 text-muted text-xs">
+          <span className="flex items-center gap-1">
+            <Trophy className="w-3.5 h-3.5" />
+            Best: {stats.best[difficulty]?.score || 0} · streak {stats.best[difficulty]?.streak || 0}
           </span>
+          <span className="text-muted/70">·</span>
+          <span>{totalAttempts} played</span>
         </div>
       </div>
 

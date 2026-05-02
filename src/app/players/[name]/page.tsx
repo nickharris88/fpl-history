@@ -8,7 +8,7 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, AreaChart, Area,
   PieChart, Pie, Cell, ComposedChart, Line, ReferenceLine
 } from 'recharts';
-import { ArrowLeft, Trophy, Target, Zap, Clock, Star, Home, Plane, Shield } from 'lucide-react';
+import { ArrowLeft, Trophy, Target, Zap, Clock, Star, Home, Plane, Shield, Share2, Check } from 'lucide-react';
 import StatCard from '@/components/StatCard';
 import ChartWrapper from '@/components/ChartWrapper';
 import PositionBadge from '@/components/PositionBadge';
@@ -103,6 +103,7 @@ export default function PlayerProfilePage() {
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
+  const [shared, setShared] = useState(false);
 
   useEffect(() => {
     fetch('/data/profile-index.json')
@@ -217,11 +218,11 @@ export default function PlayerProfilePage() {
               {stripDisambiguation(profile.name).split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
             </span>
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl sm:text-3xl font-bold">
               {stripDisambiguation(profile.name)}
             </h1>
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               {career.positions.map(pos => <PositionBadge key={pos} position={pos} />)}
               {profile.name.match(/\((.+?)\)$/) && (
                 <span className="text-xs text-muted bg-card-hover px-1.5 py-0.5 rounded border border-border/50">
@@ -231,6 +232,29 @@ export default function PlayerProfilePage() {
               <span className="text-muted text-sm">· {career.seasonCount} seasons</span>
             </div>
           </div>
+          <button
+            onClick={async () => {
+              const url = typeof window !== 'undefined' ? window.location.href : '';
+              const cleanName = stripDisambiguation(profile.name);
+              const text = `${cleanName} — ${career.total_points.toLocaleString()} FPL points across ${career.seasonCount} seasons · ${career.goals}G ${career.assists}A`;
+              if (typeof navigator !== 'undefined' && (navigator as Navigator & { share?: (data: ShareData) => Promise<void> }).share) {
+                try {
+                  await (navigator as Navigator & { share: (data: ShareData) => Promise<void> }).share({ title: cleanName, text, url });
+                  return;
+                } catch {/* user cancelled or share failed; fall through to copy */}
+              }
+              try {
+                await navigator.clipboard.writeText(`${text}\n${url}`);
+                setShared(true);
+                setTimeout(() => setShared(false), 2000);
+              } catch {/* clipboard blocked; do nothing */}
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm bg-card border border-border hover:border-accent/40 hover:text-accent transition-colors shrink-0 self-start"
+            aria-label="Share this player profile"
+          >
+            {shared ? <Check size={14} className="text-accent" /> : <Share2 size={14} />}
+            {shared ? 'Copied' : 'Share'}
+          </button>
         </div>
       </div>
 
@@ -488,36 +512,36 @@ export default function PlayerProfilePage() {
       )}
 
       {/* Season Breakdown Table */}
-      <ChartWrapper title="Season Breakdown" className="mb-8">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+      <ChartWrapper title="Season Breakdown" subtitle="Scroll horizontally on mobile" className="mb-8">
+        <div className="overflow-x-auto -mx-2 sm:mx-0">
+          <table className="w-full text-sm border-separate border-spacing-0 min-w-[640px]">
             <thead>
-              <tr className="text-left text-xs text-muted uppercase tracking-wider border-b border-border">
-                <th className="px-3 py-2">Season</th>
-                <th className="px-3 py-2">Pos</th>
-                <th className="px-3 py-2">Pts</th>
-                <th className="px-3 py-2">Goals</th>
-                <th className="px-3 py-2">Assists</th>
-                <th className="px-3 py-2">Mins</th>
-                <th className="px-3 py-2">CS</th>
-                <th className="px-3 py-2">Bonus</th>
-                <th className="px-3 py-2">ICT</th>
-                <th className="px-3 py-2">Cost</th>
+              <tr className="text-left text-xs text-muted uppercase tracking-wider">
+                <th className="px-3 py-2 sticky left-0 bg-card border-b border-border whitespace-nowrap">Season</th>
+                <th className="px-3 py-2 border-b border-border whitespace-nowrap">Pos</th>
+                <th className="px-3 py-2 border-b border-border whitespace-nowrap">Pts</th>
+                <th className="px-3 py-2 border-b border-border whitespace-nowrap">Goals</th>
+                <th className="px-3 py-2 border-b border-border whitespace-nowrap">Assists</th>
+                <th className="px-3 py-2 border-b border-border whitespace-nowrap">Mins</th>
+                <th className="px-3 py-2 border-b border-border whitespace-nowrap">CS</th>
+                <th className="px-3 py-2 border-b border-border whitespace-nowrap">Bonus</th>
+                <th className="px-3 py-2 border-b border-border whitespace-nowrap">ICT</th>
+                <th className="px-3 py-2 border-b border-border whitespace-nowrap">Cost</th>
               </tr>
             </thead>
             <tbody>
               {seasons.map(s => (
-                <tr key={s.season} className="border-b border-border/50 hover:bg-card-hover transition-colors">
-                  <td className="px-3 py-2 font-medium">{s.season}</td>
-                  <td className="px-3 py-2"><PositionBadge position={s.position} /></td>
-                  <td className="px-3 py-2 font-mono text-accent">{s.total_points}</td>
-                  <td className="px-3 py-2">{s.goals}</td>
-                  <td className="px-3 py-2">{s.assists}</td>
-                  <td className="px-3 py-2">{s.minutes.toLocaleString()}</td>
-                  <td className="px-3 py-2">{s.clean_sheets}</td>
-                  <td className="px-3 py-2">{s.bonus}</td>
-                  <td className="px-3 py-2">{s.ict_index}</td>
-                  <td className="px-3 py-2">{s.cost > 0 ? `£${s.cost}m` : '-'}</td>
+                <tr key={s.season} className="hover:bg-card-hover transition-colors group">
+                  <td className="px-3 py-2 font-medium sticky left-0 bg-card group-hover:bg-card-hover border-b border-border/50 whitespace-nowrap">{s.season}</td>
+                  <td className="px-3 py-2 border-b border-border/50"><PositionBadge position={s.position} /></td>
+                  <td className="px-3 py-2 font-mono text-accent border-b border-border/50">{s.total_points}</td>
+                  <td className="px-3 py-2 border-b border-border/50">{s.goals}</td>
+                  <td className="px-3 py-2 border-b border-border/50">{s.assists}</td>
+                  <td className="px-3 py-2 border-b border-border/50 whitespace-nowrap">{s.minutes.toLocaleString()}</td>
+                  <td className="px-3 py-2 border-b border-border/50">{s.clean_sheets}</td>
+                  <td className="px-3 py-2 border-b border-border/50">{s.bonus}</td>
+                  <td className="px-3 py-2 border-b border-border/50">{s.ict_index}</td>
+                  <td className="px-3 py-2 border-b border-border/50 whitespace-nowrap">{s.cost > 0 ? `£${s.cost}m` : '-'}</td>
                 </tr>
               ))}
             </tbody>

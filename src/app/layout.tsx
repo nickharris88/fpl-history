@@ -28,10 +28,10 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <Navigation />
-        <main className="pt-16 pb-20 md:pb-0 min-h-screen">
+        <main className="pt-16 pb-24 md:pb-0 min-h-screen">
           {children}
         </main>
-        <footer className="border-t border-border py-6 px-4 text-center text-muted text-xs mb-16 md:mb-0">
+        <footer className="border-t border-border py-6 px-4 text-center text-muted text-xs mb-20 md:mb-0">
           <p>FPL History — Data sourced from <a href="https://github.com/vaastav/Fantasy-Premier-League" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">vaastav/Fantasy-Premier-League</a></p>
           <p className="mt-1">9 seasons · 6,500+ player records · 224,000+ gameweek entries</p>
         </footer>

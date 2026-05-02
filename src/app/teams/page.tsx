@@ -11,6 +11,7 @@ import SeasonSelector from '@/components/SeasonSelector';
 import DataTable from '@/components/DataTable';
 import Link from 'next/link';
 import { parseDisambiguatedName, profileHref } from '@/lib/playerName';
+import { useSharedSeason } from '@/lib/seasonContext';
 
 interface TeamStats {
   team: string;
@@ -36,7 +37,7 @@ interface TeamSeasonHistory {
 
 
 export default function TeamsPage() {
-  const [season, setSeason] = useState('2024-25');
+  const [season, setSeason] = useSharedSeason();
   const [teams, setTeams] = useState<TeamStats[]>([]);
   const [teamHistory, setTeamHistory] = useState<Record<string, TeamSeasonHistory[]>>({});
   const [selectedTeam, setSelectedTeam] = useState('Man City');
