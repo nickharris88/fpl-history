@@ -21,22 +21,74 @@ function stripDisambiguation(name: string): string {
   return name.replace(/\s*\([^)]+\)\s*$/, '').trim();
 }
 
+// Lowercase, strip accents, treat hyphens as spaces so "Heung-Min Son"
+// matches a guess of "Heung Min Son" or just "Son".
 function normalise(str: string): string {
-  return str.toLowerCase().trim();
+  return str
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[-]/g, ' ')
+    .toLowerCase()
+    .trim();
 }
 
-function firstLetterHint(name: string): string {
-  const clean = stripDisambiguation(name);
-  return clean
-    .split(' ')
-    .map((word) => word[0] + '_'.repeat(Math.max(0, word.length - 1)))
-    .join(' ');
+function tokenise(name: string): string[] {
+  return normalise(name).split(/\s+/).filter(Boolean);
+}
+
+// Is the guess an acceptable answer for the canonical name?
+// Accepts the full name plus any contiguous slice of its tokens of length ≥ 1
+// (with the guess itself ≥ 3 chars to avoid "an"/"de" matching everything).
+// Examples:
+//   "Salah" → "Mohamed Salah" ✓
+//   "De Bruyne" → "Kevin De Bruyne" ✓
+//   "Willian" → "Willian Borges da Silva" ✓
+//   "Son" → "Heung-Min Son" ✓ (3 chars, exactly meets minimum)
+function isAcceptableGuess(guess: string, fullName: string): boolean {
+  const g = normalise(guess);
+  if (!g) return false;
+  const nameTokens = tokenise(fullName);
+  const fullJoined = nameTokens.join(' ');
+  if (g === fullJoined) return true;
+  // Reject single-letter / 2-letter guesses unless they uniquely match a token.
+  if (g.length < 3) return nameTokens.includes(g);
+  const guessTokens = g.split(/\s+/);
+  // Slide a window across the name tokens of size = guessTokens.length.
+  for (let i = 0; i + guessTokens.length <= nameTokens.length; i++) {
+    let ok = true;
+    for (let j = 0; j < guessTokens.length; j++) {
+      if (nameTokens[i + j] !== guessTokens[j]) { ok = false; break; }
+    }
+    if (ok) return true;
+  }
+  return false;
 }
 
 function formatSeasonRange(seasons: string[]): string {
   if (seasons.length === 0) return '';
   const sorted = [...seasons].sort();
   return `${sorted[0]} to ${sorted[sorted.length - 1]}`;
+}
+
+// Hint 1: reveal first name, blank the rest as letter pattern with first letters.
+//   "Mohamed Salah" → "Mohamed S____"
+//   "Kevin De Bruyne" → "Kevin D_ B_____"
+//   "Willian Borges da Silva" → "Willian B_____ d_ S____"
+function firstNameHint(name: string): string {
+  const clean = stripDisambiguation(name);
+  const parts = clean.split(/\s+/);
+  if (parts.length <= 1) return parts[0] || '';
+  const [first, ...rest] = parts;
+  return [first, ...rest.map(w => w[0] + '_'.repeat(Math.max(0, w.length - 1)))].join(' ');
+}
+
+// Hint 2: full letter pattern (every word as first-letter + underscores).
+function fullLetterHint(name: string): string {
+  const clean = stripDisambiguation(name);
+  return clean
+    .split(/\s+/)
+    .map((word) => word[0] + '_'.repeat(Math.max(0, word.length - 1)))
+    .join(' ');
 }
 
 function pickRandom(players: PlayerIndex[], exclude: Set<number>): { player: PlayerIndex; index: number } | null {
@@ -135,7 +187,7 @@ export default function QuizPage() {
     if (!guess) return;
 
     const cleanName = stripDisambiguation(currentPlayer.name);
-    const isCorrect = normalise(guess) === normalise(cleanName);
+    const isCorrect = isAcceptableGuess(guess, cleanName);
 
     if (isCorrect) {
       setGameState('correct');
@@ -307,17 +359,17 @@ export default function QuizPage() {
           </div>
           {hintsUsed >= 1 && (
             <div className="mb-2">
-              <span className="text-muted text-xs uppercase tracking-wider">Seasons played</span>
-              <p className="text-foreground text-sm mt-0.5">
-                {[...currentPlayer.seasons].sort().join(', ')}
+              <span className="text-muted text-xs uppercase tracking-wider">Initials & length</span>
+              <p className="text-foreground font-mono text-base mt-0.5 tracking-widest">
+                {fullLetterHint(currentPlayer.name)}
               </p>
             </div>
           )}
           {hintsUsed >= 2 && (
             <div>
-              <span className="text-muted text-xs uppercase tracking-wider">Name letters</span>
-              <p className="text-foreground font-mono text-sm mt-0.5 tracking-widest">
-                {firstLetterHint(currentPlayer.name)}
+              <span className="text-muted text-xs uppercase tracking-wider">First name revealed</span>
+              <p className="text-foreground font-mono text-base mt-0.5 tracking-widest">
+                {firstNameHint(currentPlayer.name)}
               </p>
             </div>
           )}
@@ -341,7 +393,7 @@ export default function QuizPage() {
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type player name…"
+              placeholder="Type a name (surname or full name works)…"
               className="flex-1 bg-card border border-border rounded-lg px-4 py-2.5 text-foreground placeholder:text-muted focus:outline-none focus:border-[#00ff87]/60 transition-colors"
               autoComplete="off"
               spellCheck={false}
@@ -378,7 +430,7 @@ export default function QuizPage() {
                 className="flex items-center gap-1.5 text-xs text-yellow-400 border border-yellow-500/30 rounded-lg px-3 py-1.5 hover:bg-yellow-500/10 transition-colors"
               >
                 <Lightbulb className="w-3.5 h-3.5" />
-                Hint {hintsUsed === 0 ? '(seasons)' : '(letters)'}
+                Hint {hintsUsed === 0 ? '(initials)' : '(first name)'}
               </button>
             )}
             <button
