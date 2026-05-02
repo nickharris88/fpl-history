@@ -605,11 +605,12 @@ const searchIndex = careerStats.slice(0, 1000).map(p => {
 });
 fs.writeFileSync(path.join(OUT_DIR, 'search-index.json'), JSON.stringify(searchIndex));
 
-// Per-player detailed data for player profiles (top 300 players)
-const top300Names = new Set(careerStats.slice(0, 300).map(p => p.name));
+// Per-player detailed data for player profiles — match search-index (top 1000)
+const PROFILE_LIMIT = 1000;
+const topProfileNames = new Set(careerStats.slice(0, PROFILE_LIMIT).map(p => p.name));
 const playerProfiles = {};
 
-for (const p of careerStats.slice(0, 300)) {
+for (const p of careerStats.slice(0, PROFILE_LIMIT)) {
   const name = p.name;
   const gwData = allGameweeks.filter(g => g.name === name);
   const seasonData = allPlayers.filter(pl => pl.name === name);

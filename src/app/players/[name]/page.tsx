@@ -12,6 +12,7 @@ import { ArrowLeft, Trophy, Target, Zap, Clock, Star, Home, Plane, Shield } from
 import StatCard from '@/components/StatCard';
 import ChartWrapper from '@/components/ChartWrapper';
 import PositionBadge from '@/components/PositionBadge';
+import { stripDisambiguation } from '@/lib/playerName';
 
 interface SeasonStats {
   season: string;
@@ -130,9 +131,16 @@ export default function PlayerProfilePage() {
 
   if (!profile) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 text-center">
-        <p className="text-muted text-lg mb-4">Player not found in top 300 profiles.</p>
-        <Link href="/players" className="text-accent hover:underline">Back to players</Link>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16 text-center">
+        <h2 className="text-2xl font-semibold mb-2">No detailed profile yet</h2>
+        <p className="text-muted mb-6">
+          Detailed profiles are generated for the top 1000 players by career points.
+          This player either falls outside that group, or their name has changed in
+          the FPL dataset between seasons. Try searching for a different spelling.
+        </p>
+        <Link href="/players" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-accent/15 text-accent border border-accent/30 hover:bg-accent/25 transition-colors text-sm font-medium">
+          <ArrowLeft size={14} /> Back to player search
+        </Link>
       </div>
     );
   }
@@ -206,12 +214,12 @@ export default function PlayerProfilePage() {
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-accent to-accent2 flex items-center justify-center shrink-0">
             <span className="text-2xl font-bold text-background">
-              {profile.name.replace(/\s+\(.+?\)$/, '').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+              {stripDisambiguation(profile.name).split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
             </span>
           </div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">
-              {profile.name.replace(/\s+\(.+?\)$/, '')}
+              {stripDisambiguation(profile.name)}
             </h1>
             <div className="flex items-center gap-2 mt-1">
               {career.positions.map(pos => <PositionBadge key={pos} position={pos} />)}

@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Search, Users } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Search, Users, X } from 'lucide-react';
 import PositionBadge from '@/components/PositionBadge';
+import { parseDisambiguatedName, profileHref } from '@/lib/playerName';
 
 interface PlayerIndex {
   name: string;
@@ -14,12 +16,6 @@ interface PlayerIndex {
   goals: number;
   assists: number;
   clean_sheets: number;
-}
-
-function parseDisambiguatedName(fullName: string): { displayName: string; team: string | null } {
-  const match = fullName.match(/^(.+?)\s+\((.+?)\)$/);
-  if (match) return { displayName: match[1], team: match[2] };
-  return { displayName: fullName, team: null };
 }
 
 function getSecondaryStats(p: PlayerIndex) {
@@ -47,15 +43,19 @@ function getSecondaryStats(p: PlayerIndex) {
   ];
 }
 
-export default function PlayersPage() {
+function PlayersPageInner() {
+  const searchParams = useSearchParams();
   const [players, setPlayers] = useState<PlayerIndex[]>([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams?.get('q') || '');
   const [posFilter, setPosFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState<'total_points' | 'goals' | 'assists' | 'clean_sheets'>('total_points');
 
   useEffect(() => {
     fetch('/data/search-index.json').then(r => r.json()).then(setPlayers);
   }, []);
+
+  const filtersActive = search !== '' || posFilter !== 'ALL' || sortBy !== 'total_points';
+  const resetFilters = () => { setSearch(''); setPosFilter('ALL'); setSortBy('total_points'); };
 
   const filtered = players
     .filter(p => {
@@ -119,7 +119,17 @@ export default function PlayersPage() {
         ))}
       </div>
 
-      <p className="text-muted text-xs mb-4">{filtered.length} players found</p>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-muted text-xs">{filtered.length} players found</p>
+        {filtersActive && (
+          <button
+            onClick={resetFilters}
+            className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors"
+          >
+            <X size={12} /> Reset filters
+          </button>
+        )}
+      </div>
 
       {/* Player Grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -129,7 +139,7 @@ export default function PlayersPage() {
           return (
             <Link
               key={p.name}
-              href={`/players/${encodeURIComponent(p.name)}`}
+              href={profileHref(p.name)}
               className="glass rounded-xl p-4 hover:bg-card-hover hover:border-accent/20 transition-all group animate-fade-in"
               style={{ animationDelay: `${Math.min(i * 20, 300)}ms` }}
             >
@@ -171,5 +181,13 @@ export default function PlayersPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function PlayersPage() {
+  return (
+    <Suspense fallback={<div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 text-muted">Loading…</div>}>
+      <PlayersPageInner />
+    </Suspense>
   );
 }

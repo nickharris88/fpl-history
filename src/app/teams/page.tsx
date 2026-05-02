@@ -9,6 +9,8 @@ import StatCard from '@/components/StatCard';
 import ChartWrapper from '@/components/ChartWrapper';
 import SeasonSelector from '@/components/SeasonSelector';
 import DataTable from '@/components/DataTable';
+import Link from 'next/link';
+import { parseDisambiguatedName, profileHref } from '@/lib/playerName';
 
 interface TeamStats {
   team: string;
@@ -142,7 +144,14 @@ export default function TeamsPage() {
               { key: 'playerCount', label: 'Players' },
               { key: 'topPlayer', label: 'Top Player', render: r => {
                 const row = r as unknown as TeamStats;
-                return <span>{row.topPlayer} <span className="text-accent text-xs">({row.topPlayerPoints}pts)</span></span>;
+                return (
+                  <span>
+                    <Link href={profileHref(row.topPlayer)} className="hover:text-accent transition-colors">
+                      {parseDisambiguatedName(row.topPlayer).displayName}
+                    </Link>{' '}
+                    <span className="text-accent text-xs">({row.topPlayerPoints}pts)</span>
+                  </span>
+                );
               }},
             ]}
           />
@@ -170,6 +179,13 @@ export default function TeamsPage() {
             </div>
           </div>
 
+          {trackerData.length === 0 && availableTeams.length > 0 && (
+            <div className="text-center py-12 px-6 rounded-xl border border-dashed border-border bg-card/30">
+              <Shield size={32} className="text-muted mx-auto mb-3" />
+              <p className="text-muted text-sm">No data available for this club. Try one of the {availableTeams.length} teams above.</p>
+            </div>
+          )}
+
           {trackerData.length > 0 && (
             <>
               {/* Season summary cards */}
@@ -187,7 +203,7 @@ export default function TeamsPage() {
                 />
                 <StatCard
                   label="All-Time Top FPL"
-                  value={[...trackerData].sort((a, b) => b.topPlayerPoints - a.topPlayerPoints)[0]?.topPlayer.replace(/\s+\(.+?\)$/, '') || ''}
+                  value={parseDisambiguatedName([...trackerData].sort((a, b) => b.topPlayerPoints - a.topPlayerPoints)[0]?.topPlayer || '').displayName}
                   subtitle={`${[...trackerData].sort((a, b) => b.topPlayerPoints - a.topPlayerPoints)[0]?.topPlayerPoints} pts in one season`}
                   icon={<Shield size={18} />}
                 />
@@ -256,7 +272,11 @@ export default function TeamsPage() {
                       {trackerData.map(d => (
                         <tr key={d.season} className="border-b border-border/50 hover:bg-card-hover transition-colors">
                           <td className="px-3 py-2 font-medium">{d.season}</td>
-                          <td className="px-3 py-2">{d.topPlayer.replace(/\s+\(.+?\)$/, '')}</td>
+                          <td className="px-3 py-2">
+                            <Link href={profileHref(d.topPlayer)} className="hover:text-accent transition-colors">
+                              {parseDisambiguatedName(d.topPlayer).displayName}
+                            </Link>
+                          </td>
                           <td className="px-3 py-2 font-mono text-accent">{d.topPlayerPoints}</td>
                           <td className="px-3 py-2 font-mono">{d.totalPoints.toLocaleString()}</td>
                           <td className="px-3 py-2">{d.totalGoals}</td>

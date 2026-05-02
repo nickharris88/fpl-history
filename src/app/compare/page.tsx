@@ -8,6 +8,7 @@ import {
 import { Search, GitCompare, X } from 'lucide-react';
 import ChartWrapper from '@/components/ChartWrapper';
 import PositionBadge from '@/components/PositionBadge';
+import { parseDisambiguatedName } from '@/lib/playerName';
 
 interface PlayerIndex {
   name: string;
@@ -59,6 +60,7 @@ export default function ComparePage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [profiles, setProfiles] = useState<Record<string, PlayerProfile>>({});
   const [search, setSearch] = useState('');
+  const [warning, setWarning] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -98,7 +100,12 @@ export default function ComparePage() {
   }, []);
 
   const addPlayer = async (name: string) => {
-    if (selected.includes(name) || selected.length >= 3) return;
+    if (selected.includes(name)) return;
+    if (selected.length >= 3) {
+      setWarning('Maximum 3 players. Remove one to add another.');
+      setTimeout(() => setWarning(null), 3000);
+      return;
+    }
     setSelected(prev => [...prev, name]);
     setSearch('');
 
@@ -139,10 +146,11 @@ export default function ComparePage() {
   // Season-by-season points
   const allSeasons = Array.from(new Set(selectedProfiles.flatMap(p => p.seasons.map(s => s.season)))).sort();
   const seasonPoints = allSeasons.map(season => {
-    const row: Record<string, string | number> = { season };
+    const row: Record<string, string | number | null> = { season };
     selectedProfiles.forEach(p => {
       const s = p.seasons.find(s => s.season === season);
-      row[p.name] = s?.total_points || 0;
+      // Use null (not 0) for "didn't play" so the bar disappears entirely
+      row[p.name] = s ? s.total_points : null;
     });
     return row;
   });
@@ -173,6 +181,12 @@ export default function ComparePage() {
       </h1>
       <p className="text-muted mb-6">Select up to 3 players for head-to-head comparison.</p>
 
+      {warning && (
+        <div className="mb-4 px-4 py-2.5 rounded-lg bg-warning/10 border border-warning/30 text-warning text-sm animate-fade-in">
+          {warning}
+        </div>
+      )}
+
       {/* Search */}
       <div className="relative mb-4 max-w-md">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -185,21 +199,25 @@ export default function ComparePage() {
         />
         {suggestions.length > 0 && (
           <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-50 overflow-hidden">
-            {suggestions.map(p => (
-              <button
-                key={p.name}
-                onClick={() => addPlayer(p.name)}
-                className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-card-hover transition-colors text-left"
-              >
-                <div>
-                  <span className="text-sm font-medium">{p.name}</span>
-                  <span className="text-xs text-muted ml-2">{p.total_points} pts</span>
-                </div>
-                <div className="flex gap-1">
-                  <PositionBadge position={p.primaryPosition || p.positions[0]} />
-                </div>
-              </button>
-            ))}
+            {suggestions.map(p => {
+              const { displayName, team } = parseDisambiguatedName(p.name);
+              return (
+                <button
+                  key={p.name}
+                  onClick={() => addPlayer(p.name)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-card-hover transition-colors text-left"
+                >
+                  <div>
+                    <span className="text-sm font-medium">{displayName}</span>
+                    {team && <span className="text-[10px] px-1.5 py-0.5 rounded bg-card-hover text-muted ml-1.5">{team}</span>}
+                    <span className="text-xs text-muted ml-2">{p.total_points} pts</span>
+                  </div>
+                  <div className="flex gap-1">
+                    <PositionBadge position={p.primaryPosition || p.positions[0]} />
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -213,7 +231,7 @@ export default function ComparePage() {
             style={{ borderColor: COLORS[i], backgroundColor: `${COLORS[i]}15` }}
           >
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i] }} />
-            <span className="text-sm font-medium">{name}</span>
+            <span className="text-sm font-medium">{parseDisambiguatedName(name).displayName}</span>
             <button onClick={() => removePlayer(name)} className="ml-1 text-muted hover:text-danger transition-colors">
               <X size={14} />
             </button>
@@ -239,7 +257,7 @@ export default function ComparePage() {
                   <Tooltip contentStyle={{ background: '#1a1a2e', border: '1px solid #2a2a4a', borderRadius: 8 }} />
                   <Legend />
                   {selectedProfiles.map((p, i) => (
-                    <Bar key={p.name} dataKey={p.name} fill={COLORS[i]} radius={[4, 4, 0, 0]} />
+                    <Bar key={p.name} dataKey={p.name} name={parseDisambiguatedName(p.name).displayName} fill={COLORS[i]} radius={[4, 4, 0, 0]} />
                   ))}
                 </BarChart>
               </ResponsiveContainer>
@@ -252,7 +270,7 @@ export default function ComparePage() {
                   <PolarAngleAxis dataKey="stat" tick={{ fontSize: 11, fill: '#8888aa' }} />
                   <PolarRadiusAxis tick={false} domain={[0, 100]} axisLine={false} />
                   {selectedProfiles.map((p, i) => (
-                    <Radar key={p.name} dataKey={p.name} stroke={COLORS[i]} fill={COLORS[i]} fillOpacity={0.15} strokeWidth={2} />
+                    <Radar key={p.name} dataKey={p.name} name={parseDisambiguatedName(p.name).displayName} stroke={COLORS[i]} fill={COLORS[i]} fillOpacity={0.15} strokeWidth={2} />
                   ))}
                   <Legend />
                 </RadarChart>
@@ -283,7 +301,7 @@ export default function ComparePage() {
                   <tr className="text-left text-xs text-muted uppercase tracking-wider border-b border-border">
                     <th className="px-3 py-2">Stat</th>
                     {selectedProfiles.map((p, i) => (
-                      <th key={p.name} className="px-3 py-2" style={{ color: COLORS[i] }}>{p.name}</th>
+                      <th key={p.name} className="px-3 py-2" style={{ color: COLORS[i] }}>{parseDisambiguatedName(p.name).displayName}</th>
                     ))}
                   </tr>
                 </thead>

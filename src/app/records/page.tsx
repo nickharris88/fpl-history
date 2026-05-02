@@ -9,6 +9,7 @@ import { Trophy, Target, Zap, Clock, Star, Shield } from 'lucide-react';
 import ChartWrapper from '@/components/ChartWrapper';
 import PositionBadge from '@/components/PositionBadge';
 import DataTable from '@/components/DataTable';
+import { parseDisambiguatedName, profileHref } from '@/lib/playerName';
 
 interface AllTimePlayer {
   name: string;
@@ -66,11 +67,14 @@ export default function RecordsPage() {
   };
 
   const sorted = getSorted();
-  const chartData = sorted.slice(0, 15).map(p => ({
-    name: p.name.split(' ').pop() || p.name,
-    value: p[tab as keyof AllTimePlayer] as number,
-    fullName: p.name,
-  }));
+  const chartData = sorted.slice(0, 15).map(p => {
+    const clean = parseDisambiguatedName(p.name).displayName;
+    return {
+      name: clean.split(' ').pop() || clean,
+      value: p[tab as keyof AllTimePlayer] as number,
+      fullName: clean,
+    };
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
@@ -100,7 +104,10 @@ export default function RecordsPage() {
         <>
           <ChartWrapper title="Top GW Performances All-Time" subtitle="Highest single gameweek scores" className="mb-8">
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={topPerfs.slice(0, 20).map(p => ({ name: p.name.split(' ').pop(), points: p.points, fullName: `${p.name} (${p.season} GW${p.gw})` }))}>
+              <BarChart data={topPerfs.slice(0, 20).map(p => {
+                const clean = parseDisambiguatedName(p.name).displayName;
+                return { name: clean.split(' ').pop(), points: p.points, fullName: `${clean} (${p.season} GW${p.gw})` };
+              })}>
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={60} />
                 <YAxis />
                 <Tooltip
@@ -117,13 +124,17 @@ export default function RecordsPage() {
             searchable
             searchKeys={['name', 'team']}
             pageSize={30}
+            defaultSortKey="points"
+            defaultSortDir="desc"
             columns={[
               { key: 'name', label: 'Player', render: r => {
                 const row = r as unknown as TopPerformance;
+                const { displayName, team } = parseDisambiguatedName(row.name);
                 return (
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">{row.name}</span>
+                    <Link href={profileHref(row.name)} className="font-medium hover:text-accent transition-colors">{displayName}</Link>
                     {row.position && <PositionBadge position={row.position} />}
+                    {team && <span className="text-[10px] px-1.5 py-0.5 rounded bg-card-hover text-muted">{team}</span>}
                   </div>
                 );
               }},
@@ -165,10 +176,12 @@ export default function RecordsPage() {
               {
                 key: 'name', label: 'Player', render: r => {
                   const row = r as unknown as AllTimePlayer;
+                  const { displayName, team } = parseDisambiguatedName(row.name);
                   return (
                     <div className="flex items-center gap-2">
-                      <Link href={`/players/${encodeURIComponent(row.name)}`} className="font-medium hover:text-accent transition-colors">{row.name}</Link>
+                      <Link href={profileHref(row.name)} className="font-medium hover:text-accent transition-colors">{displayName}</Link>
                       <div className="flex gap-1">{row.positions.map(p => <PositionBadge key={p} position={p} />)}</div>
+                      {team && <span className="text-[10px] px-1.5 py-0.5 rounded bg-card-hover text-muted">{team}</span>}
                     </div>
                   );
                 }

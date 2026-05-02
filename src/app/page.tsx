@@ -10,6 +10,7 @@ import { Trophy, Target, Users, Zap, TrendingUp, Star, Calendar, ArrowRight, Sea
 import { useRouter } from 'next/navigation';
 import StatCard from '@/components/StatCard';
 import ChartWrapper from '@/components/ChartWrapper';
+import { parseDisambiguatedName, profileHref } from '@/lib/playerName';
 
 interface SeasonSummary {
   season: string;
@@ -120,29 +121,43 @@ export default function Dashboard() {
             }}
             className="w-full pl-11 pr-4 py-3 bg-card border border-border rounded-xl text-sm text-foreground placeholder:text-muted focus:outline-none focus:border-accent/50 transition-colors"
           />
-          {heroSearch.length >= 2 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-50 overflow-hidden max-h-64 overflow-y-auto">
-              {allTime
-                .filter(p => p.name.toLowerCase().includes(heroSearch.toLowerCase()))
-                .slice(0, 6)
-                .map(p => (
+          {heroSearch.length >= 2 && (() => {
+            const q = heroSearch.toLowerCase();
+            const matches = allTime.filter(p => p.name.toLowerCase().includes(q));
+            const top = matches.slice(0, 8);
+            return (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-50 overflow-hidden max-h-80 overflow-y-auto">
+                {top.map(p => {
+                  const { displayName, team } = parseDisambiguatedName(p.name);
+                  return (
+                    <button
+                      key={p.name}
+                      onClick={() => { setHeroSearch(''); router.push(profileHref(p.name)); }}
+                      className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-card-hover transition-colors text-left"
+                    >
+                      <div>
+                        <span className="text-sm font-medium">{displayName}</span>
+                        {team && <span className="text-[10px] px-1.5 py-0.5 rounded bg-card-hover text-muted ml-1.5">{team}</span>}
+                        <span className="text-xs text-muted ml-2">{p.seasonCount} seasons · {p.positions.join('/')}</span>
+                      </div>
+                      <span className="text-accent font-mono text-sm">{p.total_points.toLocaleString()}</span>
+                    </button>
+                  );
+                })}
+                {matches.length === 0 && (
+                  <div className="px-4 py-3 text-muted text-sm">No players found</div>
+                )}
+                {matches.length > 8 && (
                   <button
-                    key={p.name}
-                    onClick={() => { setHeroSearch(''); router.push(`/players/${encodeURIComponent(p.name)}`); }}
-                    className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-card-hover transition-colors text-left"
+                    onClick={() => router.push(`/players?q=${encodeURIComponent(heroSearch)}`)}
+                    className="w-full px-4 py-2.5 bg-card-hover/50 hover:bg-card-hover text-accent text-sm font-medium border-t border-border transition-colors"
                   >
-                    <div>
-                      <span className="text-sm font-medium">{p.name}</span>
-                      <span className="text-xs text-muted ml-2">{p.seasonCount} seasons · {p.positions.join('/')}</span>
-                    </div>
-                    <span className="text-accent font-mono text-sm">{p.total_points.toLocaleString()}</span>
+                    See all {matches.length} matches →
                   </button>
-                ))}
-              {allTime.filter(p => p.name.toLowerCase().includes(heroSearch.toLowerCase())).length === 0 && (
-                <div className="px-4 py-3 text-muted text-sm">No players found</div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
 
@@ -243,11 +258,11 @@ export default function Dashboard() {
                 .filter(p => p.positions.includes(pos))
                 .slice(0, 5)
                 .map((p, i) => (
-                  <Link href={`/players/${encodeURIComponent(p.name)}`} key={p.name} className="flex items-center gap-2 p-2 rounded-lg hover:bg-card-hover transition-all group">
+                  <Link href={profileHref(p.name)} key={p.name} className="flex items-center gap-2 p-2 rounded-lg hover:bg-card-hover transition-all group">
                     <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0" style={{ backgroundColor: `${color}20`, color }}>
                       {i + 1}
                     </span>
-                    <span className="text-xs font-medium truncate flex-1 group-hover:text-accent transition-colors">{p.name}</span>
+                    <span className="text-xs font-medium truncate flex-1 group-hover:text-accent transition-colors">{parseDisambiguatedName(p.name).displayName}</span>
                     <span className="font-mono text-xs" style={{ color }}>{p.total_points.toLocaleString()}</span>
                   </Link>
                 ))}
@@ -260,16 +275,16 @@ export default function Dashboard() {
       <ChartWrapper title="Top FPL Scorer Each Season" subtitle="Highest total points per season" className="mb-8">
         <div className="grid sm:grid-cols-3 gap-3">
           {seasons.map((s, i) => (
-            <div key={s.season} className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border border-border/50 hover:border-accent/30 transition-all" style={{ animationDelay: `${i * 50}ms` }}>
+            <Link href={profileHref(s.topScorer.name)} key={s.season} className="flex items-center gap-3 p-3 rounded-lg bg-card/50 border border-border/50 hover:border-accent/50 hover:bg-card-hover transition-all" style={{ animationDelay: `${i * 50}ms` }}>
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-accent/20 to-accent2/20 flex items-center justify-center shrink-0">
                 <Trophy size={18} className="text-accent" />
               </div>
               <div className="min-w-0">
                 <p className="text-xs text-muted">{s.season}</p>
-                <p className="font-medium text-sm truncate">{s.topScorer.name}</p>
+                <p className="font-medium text-sm truncate">{parseDisambiguatedName(s.topScorer.name).displayName}</p>
                 <p className="text-accent text-xs font-mono">{s.topScorer.points} pts</p>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </ChartWrapper>
@@ -279,14 +294,14 @@ export default function Dashboard() {
         <ChartWrapper title="All-Time Top 10 by Points" subtitle="Career FPL points across all seasons">
           <div className="space-y-2">
             {allTime.slice(0, 10).map((p, i) => (
-              <Link href={`/players/${encodeURIComponent(p.name)}`} key={p.name} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-card-hover transition-all group">
+              <Link href={profileHref(p.name)} key={p.name} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-card-hover transition-all group">
                 <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                   i < 3 ? 'bg-accent/20 text-accent' : 'bg-card text-muted'
                 }`}>
                   {i + 1}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate group-hover:text-accent transition-colors">{p.name}</p>
+                  <p className="font-medium text-sm truncate group-hover:text-accent transition-colors">{parseDisambiguatedName(p.name).displayName}</p>
                   <p className="text-xs text-muted">{p.seasonCount} seasons · {p.positions.join('/')}</p>
                 </div>
                 <span className="font-mono text-sm text-accent">{p.total_points.toLocaleString()}</span>
@@ -298,14 +313,14 @@ export default function Dashboard() {
         <ChartWrapper title="Top Single Gameweek Hauls" subtitle="Highest individual GW scores ever">
           <div className="space-y-2">
             {topPerfs.slice(0, 10).map((p, i) => (
-              <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-card-hover transition-all">
+              <Link href={profileHref(p.name)} key={i} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-card-hover transition-all">
                 <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
                   i < 3 ? 'bg-purple/20 text-purple' : 'bg-card text-muted'
                 }`}>
                   {i + 1}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{p.name}</p>
+                  <p className="font-medium text-sm truncate">{parseDisambiguatedName(p.name).displayName}</p>
                   <p className="text-xs text-muted">{p.season} GW{p.gw} · {p.team}</p>
                 </div>
                 <div className="text-right">
@@ -314,7 +329,7 @@ export default function Dashboard() {
                     {p.goals > 0 && `${p.goals}G `}{p.assists > 0 && `${p.assists}A`}
                   </p>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </ChartWrapper>

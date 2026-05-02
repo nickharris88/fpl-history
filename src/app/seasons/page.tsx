@@ -10,6 +10,8 @@ import ChartWrapper from '@/components/ChartWrapper';
 import SeasonSelector from '@/components/SeasonSelector';
 import DataTable from '@/components/DataTable';
 import PositionBadge from '@/components/PositionBadge';
+import Link from 'next/link';
+import { parseDisambiguatedName, profileHref } from '@/lib/playerName';
 
 interface Player {
   name: string;
@@ -88,7 +90,7 @@ export default function SeasonsPage() {
 
       {/* Season Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Top Scorer" value={topScorer?.total_points || 0} subtitle={topScorer?.name || ''} icon={<Trophy size={20} />} />
+        <StatCard label="Top Scorer" value={topScorer?.total_points || 0} subtitle={topScorer ? parseDisambiguatedName(topScorer.name).displayName : ''} icon={<Trophy size={20} />} />
         <StatCard label="Active Players" value={activePlayers.length} subtitle="With minutes played" />
         <StatCard label="Total Goals" value={totalGoals} icon={<Target size={20} />} />
         <StatCard label="Total Assists" value={totalAssists} icon={<Zap size={20} />} />
@@ -153,14 +155,17 @@ export default function SeasonsPage() {
               <div key={label} className="flex items-start gap-3">
                 <span className="text-xs font-bold px-2 py-1 rounded mt-1 shrink-0" style={{ backgroundColor: `${color}20`, color }}>{label}</span>
                 <div className="flex flex-wrap gap-2 flex-1">
-                  {pos.map(p => (
-                    <div key={p.name} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card/50 border border-border/50 hover:border-accent/30 transition-all">
-                      <span className="text-sm font-medium">{p.name}</span>
-                      <span className="text-xs font-mono text-accent">{p.points}pts</span>
-                      {p.goals > 0 && <span className="text-xs text-muted">{p.goals}G</span>}
-                      {p.assists > 0 && <span className="text-xs text-muted">{p.assists}A</span>}
-                    </div>
-                  ))}
+                  {pos.map(p => {
+                    const { displayName } = parseDisambiguatedName(p.name);
+                    return (
+                      <Link key={p.name} href={profileHref(p.name)} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card/50 border border-border/50 hover:border-accent/50 hover:bg-card-hover transition-all">
+                        <span className="text-sm font-medium">{displayName}</span>
+                        <span className="text-xs font-mono text-accent">{p.points}pts</span>
+                        {p.goals > 0 && <span className="text-xs text-muted">{p.goals}G</span>}
+                        {p.assists > 0 && <span className="text-xs text-muted">{p.assists}A</span>}
+                      </Link>
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -194,10 +199,12 @@ export default function SeasonsPage() {
         columns={[
           { key: 'name', label: 'Player', render: (r) => {
             const row = r as unknown as Player;
+            const { displayName, team } = parseDisambiguatedName(row.name);
             return (
               <div className="flex items-center gap-2">
-                <span className="font-medium">{row.name}</span>
+                <Link href={profileHref(row.name)} className="font-medium hover:text-accent transition-colors">{displayName}</Link>
                 <PositionBadge position={row.position} />
+                {team && <span className="text-[10px] px-1.5 py-0.5 rounded bg-card-hover text-muted">{team}</span>}
               </div>
             );
           }},
